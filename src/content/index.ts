@@ -21,7 +21,7 @@ class ContentScript {
 
   private initializeMessageListeners(): void {
     chrome.runtime.onMessage.addListener(
-      (message: Message, sender, sendResponse) => {
+      (message: Message, _sender, sendResponse) => {
         this.handleMessage(message).then(sendResponse);
         return true; // Keep the message channel open for async response
       }
@@ -49,6 +49,20 @@ class ContentScript {
 
         case MESSAGE_TYPES.CORS_STATUS_CHANGED:
           return this.handleCorsStatusChange(payload.enabled);
+
+        case 'GET_VIEWPORT_DIMENSIONS':
+          return {
+            success: true,
+            data: {
+              innerWidth: window.innerWidth,
+              innerHeight: window.innerHeight,
+              outerWidth: window.outerWidth,
+              outerHeight: window.outerHeight,
+              devicePixelRatio: window.devicePixelRatio,
+              screenWidth: window.screen.width,
+              screenHeight: window.screen.height,
+            },
+          };
 
         default:
           throw new Error(`Unknown message type: ${type}`);

@@ -108,50 +108,98 @@ class BackgroundService {
     height: number
   ): Promise<ExtensionResponse> {
     try {
-      console.log('Adjusting browser size to:', { width, height });
+      console.log('Adjusting browser size to viewport:', { width, height });
       
       return new Promise((resolve) => {
-        chrome.windows.getCurrent((currentWindow) => {
-          if (chrome.runtime.lastError) {
-            console.error('Error getting current window:', chrome.runtime.lastError);
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (chrome.runtime.lastError || !tabs[0]) {
             resolve({
               success: false,
-              error: `Failed to get current window: ${chrome.runtime.lastError.message}`,
+              error: 'Failed to get active tab',
             });
             return;
           }
 
-          console.log('Current window:', currentWindow);
+          const tab = tabs[0];
           
-          if (currentWindow?.id) {
-            chrome.windows.update(currentWindow.id, {
-              width: width,
-              height: height,
-            }, (updatedWindow) => {
+          // First get viewport dimensions from the content script
+          chrome.tabs.sendMessage(tab.id!, {
+            type: 'GET_VIEWPORT_DIMENSIONS'
+          }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.error('Failed to get viewport dimensions:', chrome.runtime.lastError);
+              resolve({
+                success: false,
+                error: 'Failed to get viewport dimensions from page',
+              });
+              return;
+            }
+
+            const { innerWidth, innerHeight } = response.data || {};
+            
+            chrome.windows.getCurrent((currentWindow) => {
               if (chrome.runtime.lastError) {
-                console.error('Error updating window:', chrome.runtime.lastError);
+                console.error('Error getting current window:', chrome.runtime.lastError);
                 resolve({
                   success: false,
-                  error: `Failed to update window: ${chrome.runtime.lastError.message}`,
+                  error: `Failed to get current window: ${chrome.runtime.lastError.message}`,
+                });
+                return;
+              }
+
+              console.log('Current window:', currentWindow);
+              console.log('Current viewport:', { innerWidth, innerHeight });
+              
+              if (currentWindow?.id && currentWindow.width && currentWindow.height && innerWidth && innerHeight) {
+                // Calculate the difference between window size and viewport size
+                const widthDiff = currentWindow.width - innerWidth;
+                const heightDiff = currentWindow.height - innerHeight;
+                
+                // Calculate new window size to achieve desired viewport size
+                const newWindowWidth = width + widthDiff;
+                const newWindowHeight = height + heightDiff;
+                
+                console.log('Calculated adjustments:', { 
+                  widthDiff, 
+                  heightDiff, 
+                  newWindowWidth, 
+                  newWindowHeight 
+                });
+
+                chrome.windows.update(currentWindow.id, {
+                  width: newWindowWidth,
+                  height: newWindowHeight,
+                }, (updatedWindow) => {
+                  if (chrome.runtime.lastError) {
+                    console.error('Error updating window:', chrome.runtime.lastError);
+                    resolve({
+                      success: false,
+                      error: `Failed to update window: ${chrome.runtime.lastError.message}`,
+                    });
+                  } else {
+                    console.log('Window updated successfully:', updatedWindow);
+                    resolve({
+                      success: true,
+                      data: {
+                        windowWidth: updatedWindow?.width,
+                        windowHeight: updatedWindow?.height,
+                        viewportWidth: width,
+                        viewportHeight: height,
+                        widthDiff,
+                        heightDiff,
+                      },
+                    });
+                  }
                 });
               } else {
-                console.log('Window updated successfully:', updatedWindow);
+                console.error('Missing window or viewport information');
                 resolve({
-                  success: true,
-                  data: {
-                    width: updatedWindow?.width,
-                    height: updatedWindow?.height,
-                  },
+                  success: false,
+                  error: 'Unable to determine window or viewport dimensions',
                 });
               }
             });
-          } else {
-            console.error('No current window ID found');
-            resolve({
-              success: false,
-              error: 'No current window found',
-            });
-          }
+          });
         });
       });
     } catch (error) {
@@ -291,7 +339,7 @@ class BackgroundService {
 }
 
 // Safely initialize the background service
-let backgroundService: BackgroundService;
+let backgroundService: BackgroundService | null = null;
 
 try {
   backgroundService = BackgroundService.getInstance();

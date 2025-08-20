@@ -21,6 +21,7 @@ export class UIComparator {
   constructor() {
     this.initializeGlobalStyles();
     this.initializeEventListeners();
+    this.initializeScrollSync();
   }
 
   async createOverlay(overlayData: UIOverlay): Promise<ExtensionResponse> {
@@ -41,8 +42,9 @@ export class UIComparator {
               this.overlays.set(overlayData.id, overlayWrapper);
               document.body.appendChild(overlayWrapper);
 
-              // Update menu visibility
+              // Update menu visibility and refresh layer menu
               this.updateGlobalMenuVisibility();
+              this.refreshLayerMenu();
 
               console.log("Overlay created and added to DOM:", overlayData.id);
               console.log("Total overlays:", this.overlays.size);
@@ -260,14 +262,14 @@ export class UIComparator {
     menuDropdown.className = "fe-dev-tools-menu-dropdown";
     menuDropdown.style.display = "none";
 
-    // Menu items for all overlays
-    const menuItems = [
-      { text: "👁️ 切换所有图层", action: "toggle-all" },
-      { text: "🔒 冻结所有图层", action: "freeze-all" },
-      { text: "❌ 删除所有图层", action: "delete-all" },
+    // Main menu items
+    const mainMenuItems = [
+      { text: "👁️ 切换所有图层", action: "toggle-all", icon: "👁️" },
+      { text: "🔒 冻结所有图层", action: "freeze-all", icon: "🔒" },
+      { text: "❌ 删除所有图层", action: "delete-all", icon: "❌" },
     ];
 
-    menuItems.forEach(({ text, action }) => {
+    mainMenuItems.forEach(({ text, action }) => {
       const item = document.createElement("div");
       item.className = "fe-dev-tools-menu-item";
       item.innerHTML = text;
@@ -278,6 +280,28 @@ export class UIComparator {
       };
       menuDropdown.appendChild(item);
     });
+
+    // Separator
+    const separator = document.createElement("div");
+    separator.className = "fe-dev-tools-menu-separator";
+    menuDropdown.appendChild(separator);
+
+    // Individual layer controls section
+    const layerSectionTitle = document.createElement("div");
+    layerSectionTitle.className = "fe-dev-tools-menu-section-title";
+    layerSectionTitle.textContent = "图层控制";
+    menuDropdown.appendChild(layerSectionTitle);
+
+    // Individual layer menu items (dynamically populated)
+    const layerContainer = document.createElement("div");
+    layerContainer.className = "fe-dev-tools-layer-container";
+    this.populateLayerMenu(layerContainer);
+    menuDropdown.appendChild(layerContainer);
+
+    // Global controls separator
+    const globalSeparator = document.createElement("div");
+    globalSeparator.className = "fe-dev-tools-menu-separator";
+    menuDropdown.appendChild(globalSeparator);
 
     // Global transparency slider
     const transparencyItem = document.createElement("div");
@@ -308,6 +332,70 @@ export class UIComparator {
     transparencyItem.appendChild(transparencySlider);
     menuDropdown.appendChild(transparencyItem);
 
+    // Global position controls
+    const positionItem = document.createElement("div");
+    positionItem.className = "fe-dev-tools-menu-item fe-dev-tools-position-item";
+    
+    const positionLabel = document.createElement("div");
+    positionLabel.textContent = "📍 全局位置调整";
+    positionLabel.style.fontSize = "12px";
+    positionLabel.style.marginBottom = "8px";
+    
+    const positionControls = document.createElement("div");
+    positionControls.className = "fe-dev-tools-position-controls";
+    
+    const createPositionInput = (label: string, type: 'x' | 'y') => {
+      const container = document.createElement("div");
+      container.style.display = "flex";
+      container.style.alignItems = "center";
+      container.style.gap = "4px";
+      container.style.marginBottom = "4px";
+      
+      const labelSpan = document.createElement("span");
+      labelSpan.textContent = label;
+      labelSpan.style.fontSize = "11px";
+      labelSpan.style.minWidth = "12px";
+      
+      const input = document.createElement("input");
+      input.type = "number";
+      input.placeholder = "0";
+      input.style.width = "50px";
+      input.style.fontSize = "11px";
+      input.style.padding = "2px 4px";
+      input.style.border = "1px solid rgba(255,255,255,0.3)";
+      input.style.borderRadius = "2px";
+      input.style.background = "rgba(255,255,255,0.1)";
+      input.style.color = "white";
+      
+      const applyBtn = document.createElement("button");
+      applyBtn.textContent = "✓";
+      applyBtn.style.fontSize = "10px";
+      applyBtn.style.padding = "2px 4px";
+      applyBtn.style.border = "none";
+      applyBtn.style.borderRadius = "2px";
+      applyBtn.style.background = "rgba(59, 130, 246, 0.8)";
+      applyBtn.style.color = "white";
+      applyBtn.style.cursor = "pointer";
+      
+      applyBtn.onclick = (e) => {
+        e.stopPropagation();
+        const value = parseInt(input.value) || 0;
+        this.adjustAllOverlaysPosition(type, value);
+      };
+      
+      container.appendChild(labelSpan);
+      container.appendChild(input);
+      container.appendChild(applyBtn);
+      return container;
+    };
+    
+    positionControls.appendChild(createPositionInput("X:", 'x'));
+    positionControls.appendChild(createPositionInput("Y:", 'y'));
+    
+    positionItem.appendChild(positionLabel);
+    positionItem.appendChild(positionControls);
+    menuDropdown.appendChild(positionItem);
+
     // Hide menu when clicking outside
     document.addEventListener("click", () => {
       menuDropdown.style.display = "none";
@@ -316,8 +404,158 @@ export class UIComparator {
     return menuDropdown;
   }
 
+  private populateLayerMenu(container: HTMLElement): void {
+    // Clear existing items
+    container.innerHTML = "";
+    
+    if (this.overlays.size === 0) {
+      const emptyMsg = document.createElement("div");
+      emptyMsg.className = "fe-dev-tools-menu-item";
+      emptyMsg.style.color = "rgba(255,255,255,0.5)";
+      emptyMsg.style.fontSize = "11px";
+      emptyMsg.textContent = "暂无图层";
+      container.appendChild(emptyMsg);
+      return;
+    }
+    
+    this.overlays.forEach((overlay, id) => {
+      const layerItem = document.createElement("div");
+      layerItem.className = "fe-dev-tools-layer-item";
+      
+      const layerInfo = document.createElement("div");
+      layerInfo.style.display = "flex";
+      layerInfo.style.justifyContent = "space-between";
+      layerInfo.style.alignItems = "center";
+      layerInfo.style.marginBottom = "4px";
+      
+      const layerName = document.createElement("span");
+      layerName.textContent = `图层 ${id.slice(-4)}`;
+      layerName.style.fontSize = "11px";
+      layerName.style.color = "white";
+      
+      const layerControls = document.createElement("div");
+      layerControls.style.display = "flex";
+      layerControls.style.gap = "2px";
+      
+      // Visibility toggle
+      const visibilityBtn = document.createElement("button");
+      visibilityBtn.textContent = overlay.style.display === "none" ? "👁️‍🗨️" : "👁️";
+      visibilityBtn.style.fontSize = "10px";
+      visibilityBtn.style.padding = "2px 4px";
+      visibilityBtn.style.border = "none";
+      visibilityBtn.style.borderRadius = "2px";
+      visibilityBtn.style.background = "rgba(255,255,255,0.1)";
+      visibilityBtn.style.color = "white";
+      visibilityBtn.style.cursor = "pointer";
+      visibilityBtn.onclick = (e) => {
+        e.stopPropagation();
+        this.toggleSingleOverlayVisibility(id);
+        this.refreshLayerMenu();
+      };
+      
+      // Lock toggle  
+      const lockBtn = document.createElement("button");
+      lockBtn.textContent = overlay.style.pointerEvents === "none" ? "🔒" : "🔓";
+      lockBtn.style.fontSize = "10px";
+      lockBtn.style.padding = "2px 4px";
+      lockBtn.style.border = "none";
+      lockBtn.style.borderRadius = "2px";
+      lockBtn.style.background = "rgba(255,255,255,0.1)";
+      lockBtn.style.color = "white";
+      lockBtn.style.cursor = "pointer";
+      lockBtn.onclick = (e) => {
+        e.stopPropagation();
+        this.toggleSingleOverlayLock(id);
+        this.refreshLayerMenu();
+      };
+      
+      // Delete button
+      const deleteBtn = document.createElement("button");
+      deleteBtn.textContent = "🗑️";
+      deleteBtn.style.fontSize = "10px";
+      deleteBtn.style.padding = "2px 4px";
+      deleteBtn.style.border = "none";
+      deleteBtn.style.borderRadius = "2px";
+      deleteBtn.style.background = "rgba(220, 38, 38, 0.8)";
+      deleteBtn.style.color = "white";
+      deleteBtn.style.cursor = "pointer";
+      deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        this.removeSingleOverlay(id);
+      };
+      
+      layerControls.appendChild(visibilityBtn);
+      layerControls.appendChild(lockBtn);
+      layerControls.appendChild(deleteBtn);
+      
+      layerInfo.appendChild(layerName);
+      layerInfo.appendChild(layerControls);
+      layerItem.appendChild(layerInfo);
+      container.appendChild(layerItem);
+    });
+  }
+
+  private refreshLayerMenu(): void {
+    if (this.globalMenuContainer) {
+      const layerContainer = this.globalMenuContainer.querySelector(".fe-dev-tools-layer-container") as HTMLElement;
+      if (layerContainer) {
+        this.populateLayerMenu(layerContainer);
+      }
+    }
+  }
+
+  private adjustAllOverlaysPosition(axis: 'x' | 'y', value: number): void {
+    this.overlays.forEach((overlay) => {
+      if (axis === 'x') {
+        overlay.style.left = `${value}px`;
+        overlay.setAttribute('data-original-left', value.toString());
+      } else {
+        overlay.style.top = `${value}px`;
+        overlay.setAttribute('data-original-top', value.toString());
+      }
+    });
+  }
+
+  private toggleSingleOverlayVisibility(id: string): void {
+    const overlay = this.overlays.get(id);
+    if (overlay) {
+      const isVisible = overlay.style.display !== "none";
+      overlay.style.display = isVisible ? "none" : "block";
+    }
+  }
+
+  private toggleSingleOverlayLock(id: string): void {
+    const overlay = this.overlays.get(id);
+    if (overlay) {
+      const isLocked = overlay.style.pointerEvents === "none";
+      overlay.style.pointerEvents = isLocked ? "auto" : "none";
+      overlay.style.cursor = isLocked ? "move" : "default";
+      
+      const container = overlay.querySelector(".fe-dev-tools-overlay-container") as HTMLElement;
+      if (container) {
+        container.style.border = isLocked 
+          ? "2px dashed rgba(59, 130, 246, 0.5)" 
+          : "2px solid rgba(34, 197, 94, 0.8)";
+      }
+    }
+  }
+
+  private removeSingleOverlay(id: string): void {
+    const overlay = this.overlays.get(id);
+    if (overlay) {
+      overlay.remove();
+      this.overlays.delete(id);
+      this.updateGlobalMenuVisibility();
+      this.refreshLayerMenu();
+    }
+  }
+
   private applyStylesAndProperties(wrapper: HTMLElement, overlayData: UIOverlay): void {
     const { position, size, opacity, visible, locked } = overlayData;
+
+    // Store original position for scroll sync
+    wrapper.setAttribute('data-original-left', position.x.toString());
+    wrapper.setAttribute('data-original-top', position.y.toString());
 
     // Set wrapper styles
     wrapper.style.setProperty("position", "fixed", "important");
@@ -467,6 +705,10 @@ export class UIComparator {
             const newX = parseInt(element.style.left);
             const newY = parseInt(element.style.top);
 
+            // Update original position for scroll sync
+            element.setAttribute('data-original-left', newX.toString());
+            element.setAttribute('data-original-top', newY.toString());
+
             chrome.runtime.sendMessage({
               type: "UPDATE_OVERLAY_POSITION",
               payload: {
@@ -513,6 +755,43 @@ export class UIComparator {
     this.overlays.forEach((overlay) => {
       overlay.style.display = "none";
     });
+  }
+
+  private initializeScrollSync(): void {
+    let ticking = false;
+    
+    const updateOverlayPositions = () => {
+      const scrollY = window.scrollY;
+      const scrollX = window.scrollX;
+      
+      this.overlays.forEach((overlayElement) => {
+        // Only sync scroll for non-locked overlays
+        if (overlayElement.style.pointerEvents !== "none") {
+          // Get original position (stored in data attributes or calculate from current style)
+          const originalY = parseInt(overlayElement.getAttribute('data-original-top') || overlayElement.style.top) || 0;
+          const originalX = parseInt(overlayElement.getAttribute('data-original-left') || overlayElement.style.left) || 0;
+          
+          // Apply scroll offset
+          overlayElement.style.top = `${originalY - scrollY}px`;
+          overlayElement.style.left = `${originalX - scrollX}px`;
+        }
+      });
+      
+      ticking = false;
+    };
+
+    const onScroll = () => {
+      if (!ticking && this.overlays.size > 0) {
+        requestAnimationFrame(updateOverlayPositions);
+        ticking = true;
+      }
+    };
+
+    // Add scroll listener
+    window.addEventListener('scroll', onScroll, { passive: true });
+    
+    // Also listen for resize to handle responsive layout changes
+    window.addEventListener('resize', onScroll, { passive: true });
   }
 
   private initializeGlobalStyles(): void {
@@ -634,6 +913,49 @@ export class UIComparator {
           border-radius: 50% !important;
           cursor: pointer !important;
           border: none !important;
+        }
+        
+        .fe-dev-tools-menu-separator {
+          height: 1px !important;
+          background: rgba(255, 255, 255, 0.2) !important;
+          margin: 4px 0 !important;
+        }
+        
+        .fe-dev-tools-menu-section-title {
+          color: rgba(255, 255, 255, 0.8) !important;
+          font-size: 11px !important;
+          font-weight: bold !important;
+          padding: 4px 12px !important;
+          text-transform: uppercase !important;
+          letter-spacing: 0.5px !important;
+        }
+        
+        .fe-dev-tools-layer-container {
+          max-height: 200px !important;
+          overflow-y: auto !important;
+          margin: 4px 0 !important;
+        }
+        
+        .fe-dev-tools-layer-item {
+          padding: 6px 12px !important;
+          border-radius: 4px !important;
+          margin: 2px 0 !important;
+          background: rgba(255, 255, 255, 0.05) !important;
+          transition: background 0.2s ease !important;
+        }
+        
+        .fe-dev-tools-layer-item:hover {
+          background: rgba(255, 255, 255, 0.1) !important;
+        }
+        
+        .fe-dev-tools-position-item {
+          padding: 8px 12px !important;
+        }
+        
+        .fe-dev-tools-position-controls {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 4px !important;
         }
       `;
 

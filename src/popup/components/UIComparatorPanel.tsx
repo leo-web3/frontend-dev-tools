@@ -100,8 +100,11 @@ export const UIComparatorPanel: React.FC = () => {
         locked: false,
       };
 
+      // Auto-adjust browser size to match design dimensions
+      await handleAdjustBrowserSize(width, height);
+      
       await createOverlay(overlay);
-      showToast(`UI图片上传成功 (${width}×${height}px)`, 'success');
+      showToast(`UI图片上传成功，窗口已调整为 ${width}×${height}px`, 'success');
       return false; // Prevent default upload behavior
     } catch (error) {
       console.error('Upload error:', error);
