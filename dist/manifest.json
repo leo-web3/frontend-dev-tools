@@ -1,0 +1,63 @@
+{
+  "manifest_version": 3,
+  "name": "Frontend Dev Tools",
+  "version": "1.0.0",
+  "description": "A comprehensive Chrome extension for frontend developers with environment variables, CORS handling, and UI comparison tools",
+  
+  "permissions": [
+    "activeTab",
+    "storage",
+    "webRequest",
+    "declarativeNetRequest",
+    "windows",
+    "tabs",
+    "scripting"
+  ],
+
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_title": "Frontend Dev Tools",
+    "default_icon": {
+      "16": "assets/icons/icon-16.svg",
+      "32": "assets/icons/icon-32.svg",
+      "48": "assets/icons/icon-48.svg",
+      "128": "assets/icons/icon-128.svg"
+    }
+  },
+
+  "icons": {
+    "16": "assets/icons/icon-16.svg",
+    "32": "assets/icons/icon-32.svg",
+    "48": "assets/icons/icon-48.svg",
+    "128": "assets/icons/icon-128.svg"
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*"],
+      "matches": ["http://*/*", "https://*/*"]
+    }
+  ],
+
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}
