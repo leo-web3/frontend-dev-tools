@@ -1,8 +1,8 @@
-import { UIOverlay, ExtensionResponse } from '@/shared/types';
-import { generateId } from '@/shared/utils';
+import { ExtensionResponse, UIOverlay } from "@/shared/types";
 
 export class UIComparator {
   private overlays: Map<string, HTMLElement> = new Map();
+  private globalMenuContainer: HTMLElement | null = null;
   private dragState: {
     isDragging: boolean;
     currentOverlay?: string;
@@ -25,19 +25,27 @@ export class UIComparator {
 
   async createOverlay(overlayData: UIOverlay): Promise<ExtensionResponse> {
     try {
-      console.log('Creating overlay with data:', overlayData);
-      
+      console.log("Creating overlay with data:", overlayData);
+
       // Wait for document.body to be available
       const appendOverlayWhenReady = () => {
         return new Promise<void>((resolve) => {
           const checkBodyReady = () => {
             if (document.body) {
+              // Create global menu if it doesn't exist
+              if (!this.globalMenuContainer) {
+                this.createGlobalMenuContainer();
+              }
+
               const overlayWrapper = this.createOverlayElement(overlayData);
               this.overlays.set(overlayData.id, overlayWrapper);
               document.body.appendChild(overlayWrapper);
-              
-              console.log('Overlay created and added to DOM:', overlayData.id);
-              console.log('Total overlays:', this.overlays.size);
+
+              // Update menu visibility
+              this.updateGlobalMenuVisibility();
+
+              console.log("Overlay created and added to DOM:", overlayData.id);
+              console.log("Total overlays:", this.overlays.size);
               resolve();
             } else {
               setTimeout(checkBodyReady, 10);
@@ -49,43 +57,40 @@ export class UIComparator {
 
       await appendOverlayWhenReady();
 
-      return { 
-        success: true, 
-        data: `Overlay ${overlayData.id} created` 
+      return {
+        success: true,
+        data: `Overlay ${overlayData.id} created`,
       };
     } catch (error) {
-      console.error('Failed to create overlay:', error);
+      console.error("Failed to create overlay:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to create overlay',
+        error: error instanceof Error ? error.message : "Failed to create overlay",
       };
     }
   }
 
-  async updateOverlay(
-    id: string, 
-    updates: Partial<UIOverlay>
-  ): Promise<ExtensionResponse> {
+  async updateOverlay(id: string, updates: Partial<UIOverlay>): Promise<ExtensionResponse> {
     try {
       const overlayElement = this.overlays.get(id);
       if (!overlayElement) {
         return {
           success: false,
-          error: 'Overlay not found',
+          error: "Overlay not found",
         };
       }
 
       this.applyUpdatesToElement(overlayElement, updates);
 
-      return { 
-        success: true, 
-        data: `Overlay ${id} updated` 
+      return {
+        success: true,
+        data: `Overlay ${id} updated`,
       };
     } catch (error) {
-      console.error('Failed to update overlay:', error);
+      console.error("Failed to update overlay:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to update overlay',
+        error: error instanceof Error ? error.message : "Failed to update overlay",
       };
     }
   }
@@ -94,26 +99,23 @@ export class UIComparator {
     try {
       const overlayElement = this.overlays.get(id);
       if (overlayElement) {
-        // Remove associated menu element
-        const menuElement = (overlayElement as any)._menuElement;
-        if (menuElement && menuElement.parentNode) {
-          menuElement.parentNode.removeChild(menuElement);
-        }
-        
         // Remove overlay wrapper
         overlayElement.remove();
         this.overlays.delete(id);
       }
 
-      return { 
-        success: true, 
-        data: `Overlay ${id} removed` 
+      // Update menu visibility and hide if no overlays
+      this.updateGlobalMenuVisibility();
+
+      return {
+        success: true,
+        data: `Overlay ${id} removed`,
       };
     } catch (error) {
-      console.error('Failed to remove overlay:', error);
+      console.error("Failed to remove overlay:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to remove overlay',
+        error: error instanceof Error ? error.message : "Failed to remove overlay",
       };
     }
   }
@@ -124,37 +126,35 @@ export class UIComparator {
       if (!overlayElement) {
         return {
           success: false,
-          error: 'Overlay not found',
+          error: "Overlay not found",
         };
       }
 
-      const isVisible = overlayElement.style.display !== 'none';
-      overlayElement.style.display = isVisible ? 'none' : 'block';
+      const isVisible = overlayElement.style.display !== "none";
+      overlayElement.style.display = isVisible ? "none" : "block";
 
-      return { 
-        success: true, 
-        data: `Overlay ${id} ${isVisible ? 'hidden' : 'shown'}` 
+      return {
+        success: true,
+        data: `Overlay ${id} ${isVisible ? "hidden" : "shown"}`,
       };
     } catch (error) {
-      console.error('Failed to toggle overlay visibility:', error);
+      console.error("Failed to toggle overlay visibility:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to toggle visibility',
+        error: error instanceof Error ? error.message : "Failed to toggle visibility",
       };
     }
   }
 
   clearAllOverlays(): void {
     this.overlays.forEach((overlay) => {
-      // Remove associated menu element
-      const menuElement = (overlay as any)._menuElement;
-      if (menuElement && menuElement.parentNode) {
-        menuElement.parentNode.removeChild(menuElement);
-      }
       // Remove overlay wrapper
       overlay.remove();
     });
     this.overlays.clear();
+
+    // Hide global menu
+    this.updateGlobalMenuVisibility();
   }
 
   adjustOverlaysToPageChanges(): void {
@@ -168,179 +168,187 @@ export class UIComparator {
   }
 
   private createOverlayElement(overlayData: UIOverlay): HTMLElement {
-    // Create wrapper to hold both overlay and menu
-    const wrapper = document.createElement('div');
-    wrapper.className = 'fe-dev-tools-overlay-wrapper';
-    wrapper.setAttribute('data-overlay-id', overlayData.id);
+    // Create wrapper to hold overlay
+    const wrapper = document.createElement("div");
+    wrapper.className = "fe-dev-tools-overlay-wrapper";
+    wrapper.setAttribute("data-overlay-id", overlayData.id);
 
     // Create overlay container for image
-    const container = document.createElement('div');
-    container.className = 'fe-dev-tools-overlay-container';
+    const container = document.createElement("div");
+    container.className = "fe-dev-tools-overlay-container";
 
     // Create image element
-    const img = document.createElement('img');
+    const img = document.createElement("img");
     img.src = overlayData.imageUrl;
-    img.alt = 'UI Comparison Overlay';
+    img.alt = "UI Comparison Overlay";
     img.draggable = false;
 
     // Log image dimensions when loaded (for debugging)
     img.onload = () => {
-      console.log(`Image loaded: ${img.naturalWidth}x${img.naturalHeight}px, Container: ${overlayData.size.width}x${overlayData.size.height}px`);
+      console.log(
+        `Image loaded: ${img.naturalWidth}x${img.naturalHeight}px, Container: ${overlayData.size.width}x${overlayData.size.height}px`
+      );
     };
 
     container.appendChild(img);
 
-    // Create controls (menu) - separate from container
-    const controls = this.createControlsElement(overlayData.id);
-
     // Add container to wrapper
     wrapper.appendChild(container);
-    
+
     // Apply initial styles and properties to wrapper
     this.applyStylesAndProperties(wrapper, overlayData);
-
-    // Position and add controls 
-    this.positionMenuForOverlay(controls, overlayData);
-    
-    // Store the menu element reference in the wrapper for cleanup
-    (wrapper as any)._menuElement = controls;
 
     return wrapper;
   }
 
-  private positionMenuForOverlay(menuContainer: HTMLElement, overlayData: UIOverlay): void {
-    const { position, size } = overlayData;
-    // Position menu at bottom-right corner of the overlay
-    const menuX = position.x + size.width - 45; // 45px to account for menu button size and margin
-    const menuY = position.y + size.height - 45;
-    
-    menuContainer.style.setProperty('left', `${menuX}px`, 'important');
-    menuContainer.style.setProperty('top', `${menuY}px`, 'important');
-    
-    // Add to document body if not already added
-    if (!menuContainer.parentNode) {
-      document.body.appendChild(menuContainer);
+  private createGlobalMenuContainer(): void {
+    if (this.globalMenuContainer) return;
+
+    this.globalMenuContainer = document.createElement("div");
+    this.globalMenuContainer.className = "fe-dev-tools-menu-container";
+    this.globalMenuContainer.style.cssText = `
+      position: fixed !important;
+      bottom: 40px !important;
+      right: 40px !important;
+      z-index: 999999 !important;
+      pointer-events: auto !important;
+      opacity: 0.8 !important;
+      transition: opacity 0.2s ease !important;
+    `;
+
+    const menuButton = this.createMenuButton();
+    const menuDropdown = this.createMenuDropdown();
+
+    this.globalMenuContainer.appendChild(menuButton);
+    this.globalMenuContainer.appendChild(menuDropdown);
+
+    document.body.appendChild(this.globalMenuContainer);
+    console.log("Global menu container created and positioned");
+  }
+
+  private updateGlobalMenuVisibility(): void {
+    if (this.globalMenuContainer) {
+      const hasOverlays = this.overlays.size > 0;
+      this.globalMenuContainer.style.display = hasOverlays ? "block" : "none";
+      console.log(`Global menu visibility: ${hasOverlays ? "visible" : "hidden"}`);
     }
   }
 
-  private createControlsElement(overlayId: string): HTMLElement {
-    // Create main menu button in bottom-right corner
-    const menuButton = document.createElement('div');
-    menuButton.className = 'fe-dev-tools-menu-button';
-    menuButton.innerHTML = '⚙️';
-    menuButton.title = '图层设置';
-    
-    // Create dropdown menu
-    const menuDropdown = document.createElement('div');
-    menuDropdown.className = 'fe-dev-tools-menu-dropdown';
-    menuDropdown.style.display = 'none';
-    
-    // Menu items
-    const menuItems = [
-      { text: '🔒 冻结图层', action: 'freeze', id: `freeze-${overlayId}` },
-      { text: '👁️ 隐藏图层', action: 'hide', id: `hide-${overlayId}` },
-      { text: '📏 调整尺寸', action: 'resize', id: `resize-${overlayId}` },
-      { text: '❌ 删除图层', action: 'delete', id: `delete-${overlayId}` }
-    ];
-    
-    menuItems.forEach(({ text, action, id }) => {
-      const item = document.createElement('div');
-      item.className = 'fe-dev-tools-menu-item';
-      item.innerHTML = text;
-      item.onclick = (e) => {
-        e.stopPropagation();
-        this.handleMenuAction(overlayId, action);
-        menuDropdown.style.display = 'none';
-      };
-      menuDropdown.appendChild(item);
-    });
-    
-    // Transparency slider in menu
-    const transparencyItem = document.createElement('div');
-    transparencyItem.className = 'fe-dev-tools-menu-item fe-dev-tools-transparency-item';
-    
-    const transparencyLabel = document.createElement('span');
-    transparencyLabel.textContent = '🎨 透明度: ';
-    transparencyLabel.style.fontSize = '12px';
-    
-    const transparencySlider = document.createElement('input');
-    transparencySlider.type = 'range';
-    transparencySlider.min = '0';
-    transparencySlider.max = '100';
-    transparencySlider.value = '70';
-    transparencySlider.className = 'fe-dev-tools-transparency-slider';
-    transparencySlider.oninput = (e) => {
-      e.stopPropagation();
-      const value = (e.target as HTMLInputElement).value;
-      const container = menuButton.closest('.fe-dev-tools-overlay-container') as HTMLElement;
-      if (container) {
-        container.style.opacity = (parseInt(value) / 100).toString();
-      }
-    };
-    
-    transparencyItem.appendChild(transparencyLabel);
-    transparencyItem.appendChild(transparencySlider);
-    menuDropdown.appendChild(transparencyItem);
-    
+  private createMenuButton(): HTMLElement {
+    const menuButton = document.createElement("div");
+    menuButton.className = "fe-dev-tools-menu-button";
+    menuButton.innerHTML = "⚙️";
+    menuButton.title = "图层设置";
+
     // Toggle menu on button click
     menuButton.onclick = (e) => {
       e.stopPropagation();
-      const isVisible = menuDropdown.style.display !== 'none';
-      menuDropdown.style.display = isVisible ? 'none' : 'block';
+      if (this.globalMenuContainer) {
+        const menuDropdown = this.globalMenuContainer.querySelector(".fe-dev-tools-menu-dropdown") as HTMLElement;
+        if (menuDropdown) {
+          const isVisible = menuDropdown.style.display !== "none";
+          menuDropdown.style.display = isVisible ? "none" : "block";
+        }
+      }
     };
-    
-    // Hide menu when clicking outside
-    document.addEventListener('click', () => {
-      menuDropdown.style.display = 'none';
-    });
-    
-    const container = document.createElement('div');
-    container.className = 'fe-dev-tools-menu-container';
-    container.appendChild(menuButton);
-    container.appendChild(menuDropdown);
-    
-    console.log('Menu container created:', container);
-    console.log('Menu button created:', menuButton);
-    
-    return container;
+
+    return menuButton;
   }
 
-  private applyStylesAndProperties(
-    wrapper: HTMLElement, 
-    overlayData: UIOverlay
-  ): void {
+  private createMenuDropdown(): HTMLElement {
+    const menuDropdown = document.createElement("div");
+    menuDropdown.className = "fe-dev-tools-menu-dropdown";
+    menuDropdown.style.display = "none";
+
+    // Menu items for all overlays
+    const menuItems = [
+      { text: "👁️ 切换所有图层", action: "toggle-all" },
+      { text: "🔒 冻结所有图层", action: "freeze-all" },
+      { text: "❌ 删除所有图层", action: "delete-all" },
+    ];
+
+    menuItems.forEach(({ text, action }) => {
+      const item = document.createElement("div");
+      item.className = "fe-dev-tools-menu-item";
+      item.innerHTML = text;
+      item.onclick = (e) => {
+        e.stopPropagation();
+        this.handleGlobalMenuAction(action);
+        menuDropdown.style.display = "none";
+      };
+      menuDropdown.appendChild(item);
+    });
+
+    // Global transparency slider
+    const transparencyItem = document.createElement("div");
+    transparencyItem.className = "fe-dev-tools-menu-item fe-dev-tools-transparency-item";
+
+    const transparencyLabel = document.createElement("span");
+    transparencyLabel.textContent = "🎨 透明度: ";
+    transparencyLabel.style.fontSize = "12px";
+
+    const transparencySlider = document.createElement("input");
+    transparencySlider.type = "range";
+    transparencySlider.min = "0";
+    transparencySlider.max = "100";
+    transparencySlider.value = "70";
+    transparencySlider.className = "fe-dev-tools-transparency-slider";
+    transparencySlider.oninput = (e) => {
+      e.stopPropagation();
+      const value = (e.target as HTMLInputElement).value;
+      const opacity = parseInt(value) / 100;
+      
+      // Apply to all overlays
+      this.overlays.forEach((overlay) => {
+        overlay.style.opacity = opacity.toString();
+      });
+    };
+
+    transparencyItem.appendChild(transparencyLabel);
+    transparencyItem.appendChild(transparencySlider);
+    menuDropdown.appendChild(transparencyItem);
+
+    // Hide menu when clicking outside
+    document.addEventListener("click", () => {
+      menuDropdown.style.display = "none";
+    });
+
+    return menuDropdown;
+  }
+
+  private applyStylesAndProperties(wrapper: HTMLElement, overlayData: UIOverlay): void {
     const { position, size, opacity, visible, locked } = overlayData;
 
     // Set wrapper styles
-    wrapper.style.setProperty('position', 'fixed', 'important');
-    wrapper.style.setProperty('left', `${position.x}px`, 'important');
-    wrapper.style.setProperty('top', `${position.y}px`, 'important');
-    wrapper.style.setProperty('width', `${size.width}px`, 'important');
-    wrapper.style.setProperty('height', `${size.height}px`, 'important');
-    wrapper.style.setProperty('opacity', opacity.toString(), 'important');
-    wrapper.style.setProperty('display', visible ? 'block' : 'none', 'important');
-    wrapper.style.setProperty('z-index', '999998', 'important');
-    wrapper.style.setProperty('pointer-events', locked ? 'none' : 'auto', 'important');
-    wrapper.style.setProperty('user-select', 'none', 'important');
-    
+    wrapper.style.setProperty("position", "fixed", "important");
+    wrapper.style.setProperty("left", `${position.x}px`, "important");
+    wrapper.style.setProperty("top", `${position.y}px`, "important");
+    wrapper.style.setProperty("width", `${size.width}px`, "important");
+    wrapper.style.setProperty("height", `${size.height}px`, "important");
+    wrapper.style.setProperty("opacity", opacity.toString(), "important");
+    wrapper.style.setProperty("display", visible ? "block" : "none", "important");
+    wrapper.style.setProperty("z-index", "999998", "important");
+    wrapper.style.setProperty("pointer-events", locked ? "none" : "auto", "important");
+    wrapper.style.setProperty("user-select", "none", "important");
+
     // Style the overlay container (with border)
-    const container = wrapper.querySelector('.fe-dev-tools-overlay-container') as HTMLElement;
+    const container = wrapper.querySelector(".fe-dev-tools-overlay-container") as HTMLElement;
     if (container) {
-      container.style.setProperty('position', 'relative', 'important');
-      container.style.setProperty('width', '100%', 'important');
-      container.style.setProperty('height', '100%', 'important');
-      container.style.setProperty('border', '2px dashed rgba(59, 130, 246, 0.5)', 'important');
-      container.style.setProperty('box-sizing', 'border-box', 'important');
+      container.style.setProperty("position", "relative", "important");
+      container.style.setProperty("width", "100%", "important");
+      container.style.setProperty("height", "100%", "important");
+      container.style.setProperty("border", "2px dashed rgba(59, 130, 246, 0.5)", "important");
+      container.style.setProperty("box-sizing", "border-box", "important");
     }
 
     // Make draggable if not locked
     if (!locked) {
-      wrapper.style.cursor = 'move';
-      wrapper.addEventListener('mousedown', (e) => this.startDrag(e, overlayData.id));
+      wrapper.style.cursor = "move";
+      wrapper.addEventListener("mousedown", (e) => this.startDrag(e, overlayData.id));
     }
 
     // Image styles - use natural size instead of forcing 100%
-    const img = wrapper.querySelector('img') as HTMLImageElement;
+    const img = wrapper.querySelector("img") as HTMLImageElement;
     if (img) {
       img.style.cssText = `
         width: auto !important;
@@ -353,10 +361,7 @@ export class UIComparator {
     }
   }
 
-  private applyUpdatesToElement(
-    element: HTMLElement, 
-    updates: Partial<UIOverlay>
-  ): void {
+  private applyUpdatesToElement(element: HTMLElement, updates: Partial<UIOverlay>): void {
     if (updates.position) {
       element.style.left = `${updates.position.x}px`;
       element.style.top = `${updates.position.y}px`;
@@ -372,134 +377,53 @@ export class UIComparator {
     }
 
     if (updates.visible !== undefined) {
-      element.style.display = updates.visible ? 'block' : 'none';
-      
-      // Also update menu visibility
-      const menuElement = (element as any)._menuElement;
-      if (menuElement) {
-        menuElement.style.display = updates.visible ? 'block' : 'none';
-      }
+      element.style.display = updates.visible ? "block" : "none";
     }
 
     if (updates.locked !== undefined) {
-      element.style.pointerEvents = updates.locked ? 'none' : 'auto';
-      element.style.cursor = updates.locked ? 'default' : 'move';
-    }
-
-    // Update menu position if position or size changed
-    if ((updates.position || updates.size) && element.hasAttribute('data-overlay-id')) {
-      const menuElement = (element as any)._menuElement;
-      if (menuElement) {
-        // Get current element style values
-        const currentX = parseInt(element.style.left) || 0;
-        const currentY = parseInt(element.style.top) || 0;
-        const currentWidth = parseInt(element.style.width) || 0;
-        const currentHeight = parseInt(element.style.height) || 0;
-        
-        // Reposition menu
-        this.positionMenuForOverlay(menuElement, {
-          position: { x: currentX, y: currentY },
-          size: { width: currentWidth, height: currentHeight }
-        } as UIOverlay);
-      }
+      element.style.pointerEvents = updates.locked ? "none" : "auto";
+      element.style.cursor = updates.locked ? "default" : "move";
     }
   }
 
-  private handleControlAction(overlayId: string, action: string): void {
+  private handleGlobalMenuAction(action: string): void {
     switch (action) {
-      case 'toggle':
-        this.toggleVisibility(overlayId);
+      case "toggle-all":
+        this.toggleAllOverlays();
         break;
-      case 'lock':
-        // Toggle lock state - would need to track this in overlay data
+      case "freeze-all":
+        this.freezeAllOverlays();
         break;
-      case 'delete':
-        this.removeOverlay(overlayId);
-        break;
-    }
-  }
-
-  private handleMenuAction(overlayId: string, action: string): void {
-    const overlayElement = this.overlays.get(overlayId);
-    if (!overlayElement) return;
-
-    switch (action) {
-      case 'freeze':
-        this.toggleFreeze(overlayId, overlayElement);
-        break;
-      case 'hide':
-        this.toggleVisibility(overlayId);
-        break;
-      case 'resize':
-        this.showResizeDialog(overlayId, overlayElement);
-        break;
-      case 'delete':
-        this.removeOverlay(overlayId);
+      case "delete-all":
+        this.clearAllOverlays();
         break;
     }
   }
 
-  private toggleFreeze(overlayId: string, overlayElement: HTMLElement): void {
-    const isFrozen = overlayElement.style.pointerEvents === 'none';
-    
-    if (isFrozen) {
-      // Unfreeze
-      overlayElement.style.pointerEvents = 'auto';
-      overlayElement.style.cursor = 'move';
-      overlayElement.style.border = '2px dashed rgba(59, 130, 246, 0.5)';
+  private freezeAllOverlays(): void {
+    this.overlays.forEach((overlayElement) => {
+      const isFrozen = overlayElement.style.pointerEvents === "none";
       
-      // Re-enable drag
-      const dragHandler = (e: MouseEvent) => this.startDrag(e, overlayId);
-      overlayElement.addEventListener('mousedown', dragHandler);
-    } else {
-      // Freeze
-      overlayElement.style.pointerEvents = 'none';
-      overlayElement.style.cursor = 'default';
-      overlayElement.style.border = '2px solid rgba(34, 197, 94, 0.8)';
-      
-      // Disable drag by removing event listeners
-      const newElement = overlayElement.cloneNode(true) as HTMLElement;
-      overlayElement.parentNode?.replaceChild(newElement, overlayElement);
-      this.overlays.set(overlayId, newElement);
-      
-      // Re-enable menu button
-      const menuContainer = newElement.querySelector('.fe-dev-tools-menu-container') as HTMLElement;
-      if (menuContainer) {
-        menuContainer.style.pointerEvents = 'auto';
-      }
-    }
-  }
-
-  private showResizeDialog(overlayId: string, overlayElement: HTMLElement): void {
-    const currentWidth = parseInt(overlayElement.style.width) || 300;
-    const currentHeight = parseInt(overlayElement.style.height) || 200;
-    
-    const newWidth = prompt(`请输入新的宽度 (当前: ${currentWidth}px):`, currentWidth.toString());
-    if (newWidth === null) return;
-    
-    const newHeight = prompt(`请输入新的高度 (当前: ${currentHeight}px):`, currentHeight.toString());
-    if (newHeight === null) return;
-    
-    const width = parseInt(newWidth);
-    const height = parseInt(newHeight);
-    
-    if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
-      alert('请输入有效的数字');
-      return;
-    }
-    
-    overlayElement.style.width = `${width}px`;
-    overlayElement.style.height = `${height}px`;
-    
-    // Update stored overlay data
-    chrome.runtime.sendMessage({
-      type: 'UPDATE_OVERLAY_SIZE',
-      payload: {
-        id: overlayId,
-        size: { width, height }
+      if (isFrozen) {
+        // Unfreeze
+        overlayElement.style.pointerEvents = "auto";
+        overlayElement.style.cursor = "move";
+        const container = overlayElement.querySelector(".fe-dev-tools-overlay-container") as HTMLElement;
+        if (container) {
+          container.style.border = "2px dashed rgba(59, 130, 246, 0.5)";
+        }
+      } else {
+        // Freeze
+        overlayElement.style.pointerEvents = "none";
+        overlayElement.style.cursor = "default";
+        const container = overlayElement.querySelector(".fe-dev-tools-overlay-container") as HTMLElement;
+        if (container) {
+          container.style.border = "2px solid rgba(34, 197, 94, 0.8)";
+        }
       }
     });
   }
+
 
   private startDrag(e: MouseEvent, overlayId: string): void {
     if (this.dragState.isDragging) return;
@@ -520,7 +444,7 @@ export class UIComparator {
   }
 
   private initializeEventListeners(): void {
-    document.addEventListener('mousemove', (e) => {
+    document.addEventListener("mousemove", (e) => {
       if (!this.dragState.isDragging || !this.dragState.currentOverlay) return;
 
       const element = this.overlays.get(this.dragState.currentOverlay);
@@ -533,7 +457,7 @@ export class UIComparator {
       element.style.top = `${this.dragState.startTop + deltaY}px`;
     });
 
-    document.addEventListener('mouseup', () => {
+    document.addEventListener("mouseup", () => {
       if (this.dragState.isDragging) {
         // Send position update to background script
         const overlayId = this.dragState.currentOverlay;
@@ -542,13 +466,13 @@ export class UIComparator {
           if (element) {
             const newX = parseInt(element.style.left);
             const newY = parseInt(element.style.top);
-            
+
             chrome.runtime.sendMessage({
-              type: 'UPDATE_OVERLAY_POSITION',
+              type: "UPDATE_OVERLAY_POSITION",
               payload: {
                 id: overlayId,
-                position: { x: newX, y: newY }
-              }
+                position: { x: newX, y: newY },
+              },
             });
           }
         }
@@ -559,39 +483,40 @@ export class UIComparator {
     });
 
     // Handle keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener("keydown", (e) => {
       // Toggle all overlays with Ctrl+Shift+U
-      if (e.ctrlKey && e.shiftKey && e.code === 'KeyU') {
+      if (e.ctrlKey && e.shiftKey && e.code === "KeyU") {
         e.preventDefault();
         this.toggleAllOverlays();
       }
 
       // Hide all overlays with Escape
-      if (e.code === 'Escape') {
+      if (e.code === "Escape") {
         this.hideAllOverlays();
       }
     });
   }
 
   private toggleAllOverlays(): void {
-    const visibleCount = Array.from(this.overlays.values())
-      .filter(overlay => overlay.style.display !== 'none').length;
-    
+    const visibleCount = Array.from(this.overlays.values()).filter(
+      (overlay) => overlay.style.display !== "none"
+    ).length;
+
     const shouldHide = visibleCount > 0;
 
     this.overlays.forEach((overlay) => {
-      overlay.style.display = shouldHide ? 'none' : 'block';
+      overlay.style.display = shouldHide ? "none" : "block";
     });
   }
 
   private hideAllOverlays(): void {
     this.overlays.forEach((overlay) => {
-      overlay.style.display = 'none';
+      overlay.style.display = "none";
     });
   }
 
   private initializeGlobalStyles(): void {
-    const styleId = 'fe-dev-tools-overlay-styles';
+    const styleId = "fe-dev-tools-overlay-styles";
     if (document.getElementById(styleId)) return;
 
     const addStylesWhenReady = () => {
@@ -600,7 +525,7 @@ export class UIComparator {
         return;
       }
 
-      const style = document.createElement('style');
+      const style = document.createElement("style");
       style.id = styleId;
       style.textContent = `
         .fe-dev-tools-overlay-wrapper {
@@ -614,16 +539,18 @@ export class UIComparator {
           height: 100% !important;
         }
         
-        .fe-dev-tools-overlay-wrapper:hover .fe-dev-tools-menu-container {
-          opacity: 1 !important;
-        }
-        
         .fe-dev-tools-menu-container {
           position: fixed !important;
+          bottom: 40px !important;
+          right: 40px !important;
           opacity: 0.8 !important;
           transition: opacity 0.2s ease !important;
           z-index: 999999 !important;
           pointer-events: auto !important;
+        }
+        
+        .fe-dev-tools-menu-container:hover {
+          opacity: 1 !important;
         }
         
         .fe-dev-tools-menu-button {
@@ -709,7 +636,7 @@ export class UIComparator {
           border: none !important;
         }
       `;
-      
+
       document.head.appendChild(style);
     };
 

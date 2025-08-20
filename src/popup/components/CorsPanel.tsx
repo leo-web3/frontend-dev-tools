@@ -1,23 +1,17 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { 
-  Switch, 
-  Button, 
-  Input, 
-  Space, 
-  List, 
-  Tag, 
-  Divider,
-  Select,
-  message 
-} from 'antd';
-import { 
-  PlusOutlined, 
-  DeleteOutlined, 
-  ReloadOutlined 
-} from '@ant-design/icons';
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { Plus, X, ChevronDown } from 'lucide-react';
 import { useExtensionStore } from '../hooks/useExtensionStore';
-
-const { Option } = Select;
 
 export const CorsPanel: React.FC = () => {
   const {
@@ -30,25 +24,36 @@ export const CorsPanel: React.FC = () => {
     toggleCors,
   } = useExtensionStore();
 
-  const [newOrigin, setNewOrigin] = React.useState('');
-  const [newHeader, setNewHeader] = React.useState('');
+  const [newOrigin, setNewOrigin] = useState('');
+  const [newHeader, setNewHeader] = useState('');
+  const [selectedMethods, setSelectedMethods] = useState<string[]>([]);
+  const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   useEffect(() => {
     loadCorsConfig();
   }, [loadCorsConfig]);
 
+  useEffect(() => {
+    setSelectedMethods(corsConfig.allowedMethods || []);
+  }, [corsConfig.allowedMethods]);
+
   const handleToggleCors = async (enabled: boolean) => {
     try {
       await toggleCors(enabled);
-      message.success(`CORS已${enabled ? '启用' : '禁用'}`);
+      showToast(`CORS已${enabled ? '启用' : '禁用'}`, 'success');
     } catch (error) {
-      message.error('操作失败');
+      showToast('操作失败', 'error');
     }
   };
 
   const handleAddOrigin = async () => {
     if (!newOrigin.trim()) {
-      message.warning('请输入有效的源地址');
+      showToast('请输入有效的源地址', 'error');
       return;
     }
 
@@ -58,12 +63,12 @@ export const CorsPanel: React.FC = () => {
         origins.push(newOrigin);
         await updateCorsConfig({ allowedOrigins: origins });
         setNewOrigin('');
-        message.success('源地址添加成功');
+        showToast('源地址添加成功', 'success');
       } else {
-        message.warning('该源地址已存在');
+        showToast('该源地址已存在', 'error');
       }
     } catch (error) {
-      message.error('添加失败');
+      showToast('添加失败', 'error');
     }
   };
 
@@ -71,15 +76,15 @@ export const CorsPanel: React.FC = () => {
     try {
       const origins = corsConfig.allowedOrigins.filter(o => o !== origin);
       await updateCorsConfig({ allowedOrigins: origins });
-      message.success('源地址删除成功');
+      showToast('源地址删除成功', 'success');
     } catch (error) {
-      message.error('删除失败');
+      showToast('删除失败', 'error');
     }
   };
 
   const handleAddHeader = async () => {
     if (!newHeader.trim()) {
-      message.warning('请输入有效的请求头');
+      showToast('请输入有效的请求头', 'error');
       return;
     }
 
@@ -89,12 +94,12 @@ export const CorsPanel: React.FC = () => {
         headers.push(newHeader);
         await updateCorsConfig({ allowedHeaders: headers });
         setNewHeader('');
-        message.success('请求头添加成功');
+        showToast('请求头添加成功', 'success');
       } else {
-        message.warning('该请求头已存在');
+        showToast('该请求头已存在', 'error');
       }
     } catch (error) {
-      message.error('添加失败');
+      showToast('添加失败', 'error');
     }
   };
 
@@ -102,27 +107,28 @@ export const CorsPanel: React.FC = () => {
     try {
       const headers = corsConfig.allowedHeaders.filter(h => h !== header);
       await updateCorsConfig({ allowedHeaders: headers });
-      message.success('请求头删除成功');
+      showToast('请求头删除成功', 'success');
     } catch (error) {
-      message.error('删除失败');
+      showToast('删除失败', 'error');
     }
   };
 
   const handleUpdateMethods = async (methods: string[]) => {
     try {
       await updateCorsConfig({ allowedMethods: methods });
-      message.success('HTTP方法更新成功');
+      setSelectedMethods(methods);
+      showToast('HTTP方法更新成功', 'success');
     } catch (error) {
-      message.error('更新失败');
+      showToast('更新失败', 'error');
     }
   };
 
   const handleToggleCredentials = async (enabled: boolean) => {
     try {
       await updateCorsConfig({ credentials: enabled });
-      message.success(`凭证支持已${enabled ? '启用' : '禁用'}`);
+      showToast(`凭证支持已${enabled ? '启用' : '禁用'}`, 'success');
     } catch (error) {
-      message.error('操作失败');
+      showToast('操作失败', 'error');
     }
   };
 
@@ -146,191 +152,212 @@ export const CorsPanel: React.FC = () => {
 
   const httpMethods = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD', 'PATCH'];
 
+  const toggleMethod = (method: string) => {
+    const newMethods = selectedMethods.includes(method) 
+      ? selectedMethods.filter(m => m !== method)
+      : [...selectedMethods, method];
+    handleUpdateMethods(newMethods);
+  };
+
   return (
-    <div className="panel-content">
+    <div className="space-y-4">
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg ${
+          toast.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+        }`}>
+          {toast.message}
+        </div>
+      )}
+
       {error && (
-        <div className="error-message">{error}</div>
+        <div className="p-3 bg-destructive/15 text-destructive rounded-md text-sm">{error}</div>
       )}
 
       {/* CORS Toggle */}
-      <div className="panel-header">
-        <div className="global-toggle">
-          <Switch
-            checked={corsEnabled}
-            onChange={handleToggleCors}
-            loading={loading}
-          />
-          <span className="toggle-label">
-            启用跨域请求处理
-          </span>
-        </div>
-        
-        <div className="cors-status">
-          <Tag color={corsEnabled ? 'green' : 'default'}>
-            {corsEnabled ? 'CORS已启用' : 'CORS已禁用'}
-          </Tag>
-        </div>
-      </div>
-
-      <Divider />
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={corsEnabled}
+                onCheckedChange={handleToggleCors}
+                disabled={loading}
+              />
+              <span className="text-sm font-medium">
+                启用跨域请求处理
+              </span>
+            </div>
+            
+            <Badge variant={corsEnabled ? "default" : "secondary"}>
+              {corsEnabled ? 'CORS已启用' : 'CORS已禁用'}
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
 
       {corsEnabled && (
         <>
           {/* Allowed Origins */}
-          <div className="config-section">
-            <h4>允许的源地址 (Origins)</h4>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <div className="add-item-form">
-                <Input.Group compact>
-                  <Select
-                    style={{ width: '30%' }}
-                    placeholder="常用"
-                    value={newOrigin}
-                    onChange={setNewOrigin}
-                    allowClear
-                  >
-                    {commonOrigins.map(origin => (
-                      <Option key={origin} value={origin}>
-                        {origin}
-                      </Option>
-                    ))}
-                  </Select>
+          <Card>
+            <CardContent className="p-4">
+              <h4 className="font-medium mb-3">允许的源地址 (Origins)</h4>
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        常用 <ChevronDown className="ml-1 w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      {commonOrigins.map(origin => (
+                        <DropdownMenuItem 
+                          key={origin} 
+                          onClick={() => setNewOrigin(origin)}
+                        >
+                          {origin}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Input
-                    style={{ width: '50%' }}
-                    placeholder="或输入自定义源地址"
+                    className="flex-1"
+                    placeholder="输入自定义源地址"
                     value={newOrigin}
                     onChange={(e) => setNewOrigin(e.target.value)}
-                    onPressEnter={handleAddOrigin}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleAddOrigin();
+                      }
+                    }}
                   />
-                  <Button 
-                    style={{ width: '20%' }}
-                    type="primary" 
-                    icon={<PlusOutlined />}
-                    onClick={handleAddOrigin}
-                  />
-                </Input.Group>
-              </div>
-              
-              <List
-                size="small"
-                dataSource={corsConfig.allowedOrigins}
-                renderItem={(origin) => (
-                  <List.Item
-                    actions={[
+                  <Button onClick={handleAddOrigin} size="sm">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+                
+                <div className="space-y-1">
+                  {corsConfig.allowedOrigins.map((origin) => (
+                    <div key={origin} className="flex items-center justify-between p-2 bg-muted rounded">
+                      <Badge variant="outline">{origin}</Badge>
                       <Button
-                        key="delete"
-                        type="text"
-                        size="small"
-                        danger
-                        icon={<DeleteOutlined />}
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleRemoveOrigin(origin)}
-                      />
-                    ]}
-                  >
-                    <Tag color="blue">{origin}</Tag>
-                  </List.Item>
-                )}
-              />
-            </Space>
-          </div>
-
-          <Divider />
-
-          {/* HTTP Methods */}
-          <div className="config-section">
-            <h4>允许的HTTP方法</h4>
-            <Select
-              mode="multiple"
-              style={{ width: '100%' }}
-              placeholder="选择允许的HTTP方法"
-              value={corsConfig.allowedMethods}
-              onChange={handleUpdateMethods}
-            >
-              {httpMethods.map(method => (
-                <Option key={method} value={method}>
-                  {method}
-                </Option>
-              ))}
-            </Select>
-          </div>
-
-          <Divider />
-
-          {/* Allowed Headers */}
-          <div className="config-section">
-            <h4>允许的请求头</h4>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <div className="add-item-form">
-                <Input.Group compact>
-                  <Select
-                    style={{ width: '30%' }}
-                    placeholder="常用"
-                    value={newHeader}
-                    onChange={setNewHeader}
-                    allowClear
-                  >
-                    {commonHeaders.map(header => (
-                      <Option key={header} value={header}>
-                        {header}
-                      </Option>
-                    ))}
-                  </Select>
-                  <Input
-                    style={{ width: '50%' }}
-                    placeholder="或输入自定义请求头"
-                    value={newHeader}
-                    onChange={(e) => setNewHeader(e.target.value)}
-                    onPressEnter={handleAddHeader}
-                  />
-                  <Button 
-                    style={{ width: '20%' }}
-                    type="primary" 
-                    icon={<PlusOutlined />}
-                    onClick={handleAddHeader}
-                  />
-                </Input.Group>
-              </div>
-              
-              <div className="headers-list">
-                {corsConfig.allowedHeaders.map((header) => (
-                  <Tag 
-                    key={header}
-                    closable
-                    color="purple"
-                    onClose={() => handleRemoveHeader(header)}
-                  >
-                    {header}
-                  </Tag>
-                ))}
-              </div>
-            </Space>
-          </div>
-
-          <Divider />
-
-          {/* Credentials */}
-          <div className="config-section">
-            <div className="config-option">
-              <div>
-                <strong>允许凭证 (Credentials)</strong>
-                <div className="option-description">
-                  允许请求携带Cookie和认证信息
+                      >
+                        <X className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <Switch
-                checked={corsConfig.credentials}
-                onChange={handleToggleCredentials}
-              />
-            </div>
-          </div>
+            </CardContent>
+          </Card>
+
+          {/* HTTP Methods */}
+          <Card>
+            <CardContent className="p-4">
+              <h4 className="font-medium mb-3">允许的HTTP方法</h4>
+              <div className="flex flex-wrap gap-2">
+                {httpMethods.map(method => (
+                  <Button
+                    key={method}
+                    variant={selectedMethods.includes(method) ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => toggleMethod(method)}
+                  >
+                    {method}
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Allowed Headers */}
+          <Card>
+            <CardContent className="p-4">
+              <h4 className="font-medium mb-3">允许的请求头</h4>
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        常用 <ChevronDown className="ml-1 w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      {commonHeaders.map(header => (
+                        <DropdownMenuItem 
+                          key={header} 
+                          onClick={() => setNewHeader(header)}
+                        >
+                          {header}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Input
+                    className="flex-1"
+                    placeholder="输入自定义请求头"
+                    value={newHeader}
+                    onChange={(e) => setNewHeader(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleAddHeader();
+                      }
+                    }}
+                  />
+                  <Button onClick={handleAddHeader} size="sm">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                  {corsConfig.allowedHeaders.map((header) => (
+                    <Badge 
+                      key={header} 
+                      variant="secondary" 
+                      className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground"
+                      onClick={() => handleRemoveHeader(header)}
+                    >
+                      {header} <X className="ml-1 w-3 h-3" />
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Credentials */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">允许凭证 (Credentials)</div>
+                  <div className="text-sm text-muted-foreground">
+                    允许请求携带Cookie和认证信息
+                  </div>
+                </div>
+                <Switch
+                  checked={corsConfig.credentials}
+                  onCheckedChange={handleToggleCredentials}
+                />
+              </div>
+            </CardContent>
+          </Card>
         </>
       )}
 
       {!corsEnabled && (
-        <div className="disabled-notice">
-          <p>启用CORS处理后，可以配置跨域请求的详细规则。</p>
-          <p>这将允许您的前端应用绕过浏览器的同源策略限制。</p>
-        </div>
+        <Card>
+          <CardContent className="p-6 text-center">
+            <div className="text-muted-foreground space-y-2">
+              <p>启用CORS处理后，可以配置跨域请求的详细规则。</p>
+              <p>这将允许您的前端应用绕过浏览器的同源策略限制。</p>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

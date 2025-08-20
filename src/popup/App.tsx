@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs } from 'antd';
-import type { TabsProps } from 'antd';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EnvironmentPanel } from './components/EnvironmentPanel';
 import { CorsPanel } from './components/CorsPanel';
 import { UIComparatorPanel } from './components/UIComparatorPanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { useExtensionStore } from './hooks/useExtensionStore';
-
-const { TabPane } = Tabs;
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('environment');
@@ -48,77 +45,72 @@ export const App: React.FC = () => {
     saveLastActiveTab(tabKey);
   };
 
-  const tabItems: TabsProps['items'] = [
+  // Tab definitions for cleaner code
+  const tabData = [
     {
       key: 'environment',
-      label: (
-        <span>
-          <span className="tab-icon">🌍</span>
-          环境变量
-        </span>
-      ),
-      children: <EnvironmentPanel currentDomain={currentDomain} />,
+      icon: '🌍',
+      label: '环境变量',
+      component: <EnvironmentPanel currentDomain={currentDomain} />,
     },
     {
       key: 'cors',
-      label: (
-        <span>
-          <span className="tab-icon">🔗</span>
-          跨域处理
-        </span>
-      ),
-      children: <CorsPanel />,
+      icon: '🔗',
+      label: '跨域处理',
+      component: <CorsPanel />,
     },
     {
       key: 'ui-comparator',
-      label: (
-        <span>
-          <span className="tab-icon">🎨</span>
-          UI比对
-        </span>
-      ),
-      children: <UIComparatorPanel />,
+      icon: '🎨',
+      label: 'UI比对',
+      component: <UIComparatorPanel />,
     },
     {
       key: 'settings',
-      label: (
-        <span>
-          <span className="tab-icon">⚙️</span>
-          设置
-        </span>
-      ),
-      children: <SettingsPanel />,
+      icon: '⚙️',
+      label: '设置',
+      component: <SettingsPanel />,
     },
   ];
 
   return (
-    <div className="app-container">
-      <header className="app-header">
-        <div className="app-title">
-          <span className="app-icon">🔧</span>
-          Frontend Dev Tools
-        </div>
-        {currentDomain && (
-          <div className="current-domain">
-            <span className="domain-icon">📍</span>
-            {currentDomain}
+    <div className="app-container min-h-screen bg-background text-foreground">
+      <header className="app-header border-b px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🔧</span>
+            <h1 className="text-lg font-semibold">Frontend Dev Tools</h1>
           </div>
-        )}
+          {currentDomain && (
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <span>📍</span>
+              <span>{currentDomain}</span>
+            </div>
+          )}
+        </div>
       </header>
 
-      <main className="app-content">
-        <Tabs
-          activeKey={activeTab}
-          onChange={handleTabChange}
-          type="card"
-          size="small"
-          items={tabItems}
-          className="main-tabs"
-        />
+      <main className="app-content p-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <TabsList className="grid grid-cols-4 w-full mb-6">
+            {tabData.map((tab) => (
+              <TabsTrigger key={tab.key} value={tab.key} className="flex items-center gap-2">
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          
+          {tabData.map((tab) => (
+            <TabsContent key={tab.key} value={tab.key} className="mt-0">
+              {tab.component}
+            </TabsContent>
+          ))}
+        </Tabs>
       </main>
 
-      <footer className="app-footer">
-        <div className="footer-text">
+      <footer className="app-footer border-t px-6 py-3">
+        <div className="text-center text-sm text-muted-foreground">
           © 2024 Frontend Dev Tools
         </div>
       </footer>

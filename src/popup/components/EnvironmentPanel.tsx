@@ -1,24 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
-  Switch, 
-  Button, 
-  Input, 
-  Space, 
-  List, 
-  Popconfirm, 
-  Upload, 
-  message,
-  Divider,
-  Empty 
-} from 'antd';
-import type { UploadProps } from 'antd';
-import { 
-  PlusOutlined, 
-  DeleteOutlined, 
-  EditOutlined, 
-  UploadOutlined,
-  ReloadOutlined 
-} from '@ant-design/icons';
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle,
+  DialogTrigger 
+} from '@/components/ui/dialog';
+import { Plus, Trash2, Edit3, Upload, RotateCcw } from 'lucide-react';
 import { EnvironmentVariable } from '@/shared/types';
 import { useExtensionStore } from '../hooks/useExtensionStore';
 import { parseEnvFile, validateEnvironmentVariable } from '@/shared/utils';
@@ -47,6 +41,14 @@ export const EnvironmentPanel: React.FC<EnvironmentPanelProps> = ({ currentDomai
     enabled: true,
   });
   const [showAddForm, setShowAddForm] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [variableToDelete, setVariableToDelete] = useState<string>('');
+  const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   useEffect(() => {
     if (currentDomain) {
@@ -57,9 +59,9 @@ export const EnvironmentPanel: React.FC<EnvironmentPanelProps> = ({ currentDomai
   const handleToggleGlobal = async (enabled: boolean) => {
     try {
       await toggleGlobalEnvironment(currentDomain, enabled);
-      message.success(`环境变量已${enabled ? '启用' : '禁用'}`);
+      showToast(`环境变量已${enabled ? '启用' : '禁用'}`, 'success');
     } catch (error) {
-      message.error('操作失败');
+      showToast('操作失败', 'error');
     }
   };
 
@@ -67,16 +69,16 @@ export const EnvironmentPanel: React.FC<EnvironmentPanelProps> = ({ currentDomai
     try {
       const errors = validateEnvironmentVariable(newVariable);
       if (errors.length > 0) {
-        message.error(errors[0]);
+        showToast(errors[0], 'error');
         return;
       }
 
       await addEnvironmentVariable(currentDomain, newVariable);
       setNewVariable({ key: '', value: '', enabled: true });
       setShowAddForm(false);
-      message.success('环境变量添加成功');
+      showToast('环境变量添加成功', 'success');
     } catch (error) {
-      message.error('添加失败');
+      showToast('添加失败', 'error');
     }
   };
 
@@ -84,24 +86,26 @@ export const EnvironmentPanel: React.FC<EnvironmentPanelProps> = ({ currentDomai
     try {
       const errors = validateEnvironmentVariable(variable);
       if (errors.length > 0) {
-        message.error(errors[0]);
+        showToast(errors[0], 'error');
         return;
       }
 
       await updateEnvironmentVariable(currentDomain, variable);
       setEditingKey('');
-      message.success('环境变量更新成功');
+      showToast('环境变量更新成功', 'success');
     } catch (error) {
-      message.error('更新失败');
+      showToast('更新失败', 'error');
     }
   };
 
   const handleRemoveVariable = async (key: string) => {
     try {
       await removeEnvironmentVariable(currentDomain, key);
-      message.success('环境变量删除成功');
+      showToast('环境变量删除成功', 'success');
+      setDeleteDialogOpen(false);
+      setVariableToDelete('');
     } catch (error) {
-      message.error('删除失败');
+      showToast('删除失败', 'error');
     }
   };
 
@@ -109,7 +113,7 @@ export const EnvironmentPanel: React.FC<EnvironmentPanelProps> = ({ currentDomai
     try {
       await toggleEnvironmentVariable(currentDomain, key);
     } catch (error) {
-      message.error('切换失败');
+      showToast('切换失败', 'error');
     }
   };
 
@@ -121,164 +125,162 @@ export const EnvironmentPanel: React.FC<EnvironmentPanelProps> = ({ currentDomai
       });
 
       if (response.success) {
-        message.success('环境变量注入成功');
+        showToast('环境变量注入成功', 'success');
       } else {
-        message.error(response.error || '注入失败');
+        showToast(response.error || '注入失败', 'error');
       }
     } catch (error) {
-      message.error('注入失败');
+      showToast('注入失败', 'error');
     }
   };
 
-  const uploadProps: UploadProps = {
-    accept: '.env',
-    beforeUpload: (file) => {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const content = e.target?.result as string;
-          const variables = parseEnvFile(content);
-          
-          // Add all parsed variables
-          for (const variable of variables) {
-            await addEnvironmentVariable(currentDomain, variable);
-          }
-          
-          message.success(`成功导入 ${variables.length} 个环境变量`);
-        } catch (error) {
-          message.error('文件解析失败');
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const content = e.target?.result as string;
+        const variables = parseEnvFile(content);
+        
+        // Add all parsed variables
+        for (const variable of variables) {
+          await addEnvironmentVariable(currentDomain, variable);
         }
-      };
-      reader.readAsText(file);
-      return false; // Prevent automatic upload
-    },
-    showUploadList: false,
+        
+        showToast(`成功导入 ${variables.length} 个环境变量`, 'success');
+      } catch (error) {
+        showToast('文件解析失败', 'error');
+      }
+    };
+    reader.readAsText(file);
   };
 
   if (!currentDomain) {
     return (
-      <div className="panel-content">
-        <Empty 
-          description="无法获取当前域名信息"
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-        />
+      <div className="p-4 text-center">
+        <div className="text-muted-foreground">无法获取当前域名信息</div>
       </div>
     );
   }
 
   return (
-    <div className="panel-content">
+    <div className="space-y-4">
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg ${
+          toast.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+        }`}>
+          {toast.message}
+        </div>
+      )}
+
       {error && (
-        <div className="error-message">{error}</div>
+        <div className="p-3 bg-destructive/15 text-destructive rounded-md text-sm">{error}</div>
       )}
 
       {/* Global toggle and actions */}
-      <div className="panel-header">
-        <div className="global-toggle">
-          <Switch
-            checked={currentEnvironmentConfig.globalEnabled}
-            onChange={handleToggleGlobal}
-            loading={loading}
-          />
-          <span className="toggle-label">
-            启用环境变量注入 ({currentDomain})
-          </span>
-        </div>
-        
-        <Space>
-          <Upload {...uploadProps}>
-            <Button 
-              icon={<UploadOutlined />}
-              size="small"
-              type="dashed"
-            >
-              导入.env
-            </Button>
-          </Upload>
-          
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={handleInjectVariables}
-            disabled={!currentEnvironmentConfig.globalEnabled}
-            type="primary"
-            size="small"
-          >
-            注入变量
-          </Button>
-        </Space>
-      </div>
-
-      <Divider />
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={currentEnvironmentConfig.globalEnabled}
+                onCheckedChange={handleToggleGlobal}
+                disabled={loading}
+              />
+              <span className="text-sm font-medium">
+                启用环境变量注入 ({currentDomain})
+              </span>
+            </div>
+            
+            <div className="flex gap-2">
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".env"
+                  onChange={handleFileUpload}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <Button variant="outline" size="sm" className="relative">
+                  <Upload className="w-4 h-4 mr-1" />
+                  导入.env
+                </Button>
+              </div>
+              
+              <Button
+                onClick={handleInjectVariables}
+                disabled={!currentEnvironmentConfig.globalEnabled}
+                size="sm"
+              >
+                <RotateCcw className="w-4 h-4 mr-1" />
+                注入变量
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Variables list */}
-      <div className="variables-list">
+      <div className="space-y-2">
         {currentEnvironmentConfig.variables.length === 0 ? (
-          <Empty 
-            description="暂无环境变量"
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-          >
-            <Button 
-              type="primary" 
-              onClick={() => setShowAddForm(true)}
-              icon={<PlusOutlined />}
-            >
-              添加环境变量
-            </Button>
-          </Empty>
+          <Card>
+            <CardContent className="p-8 text-center">
+              <div className="text-muted-foreground mb-4">暂无环境变量</div>
+              <Button onClick={() => setShowAddForm(true)}>
+                <Plus className="w-4 h-4 mr-1" />
+                添加环境变量
+              </Button>
+            </CardContent>
+          </Card>
         ) : (
-          <List
-            size="small"
-            dataSource={currentEnvironmentConfig.variables}
-            renderItem={(variable) => (
-              <List.Item
-                actions={[
-                  <Switch
-                    key="toggle"
-                    size="small"
-                    checked={variable.enabled}
-                    onChange={() => handleToggleVariable(variable.key)}
-                  />,
-                  <Button
-                    key="edit"
-                    type="text"
-                    size="small"
-                    icon={<EditOutlined />}
-                    onClick={() => setEditingKey(variable.key)}
-                  />,
-                  <Popconfirm
-                    key="delete"
-                    title="确定删除这个环境变量？"
-                    onConfirm={() => handleRemoveVariable(variable.key)}
-                    okText="确定"
-                    cancelText="取消"
-                  >
-                    <Button
-                      type="text"
-                      size="small"
-                      danger
-                      icon={<DeleteOutlined />}
+          currentEnvironmentConfig.variables.map((variable) => (
+            <Card key={variable.key}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <VariableItem
+                    variable={variable}
+                    isEditing={editingKey === variable.key}
+                    onSave={handleUpdateVariable}
+                    onCancel={() => setEditingKey('')}
+                  />
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={variable.enabled}
+                      onCheckedChange={() => handleToggleVariable(variable.key)}
+                      size="sm"
                     />
-                  </Popconfirm>
-                ]}
-              >
-                <VariableItem
-                  variable={variable}
-                  isEditing={editingKey === variable.key}
-                  onSave={handleUpdateVariable}
-                  onCancel={() => setEditingKey('')}
-                />
-              </List.Item>
-            )}
-          />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditingKey(variable.key)}
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setVariableToDelete(variable.key);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
         )}
       </div>
 
       {/* Add new variable form */}
       {showAddForm && (
-        <>
-          <Divider />
-          <div className="add-variable-form">
-            <Space direction="vertical" style={{ width: '100%' }}>
+        <Card>
+          <CardContent className="p-4">
+            <div className="space-y-4">
               <Input
                 placeholder="变量名 (e.g., API_URL)"
                 value={newVariable.key}
@@ -289,37 +291,56 @@ export const EnvironmentPanel: React.FC<EnvironmentPanelProps> = ({ currentDomai
                 value={newVariable.value}
                 onChange={(e) => setNewVariable({ ...newVariable, value: e.target.value })}
               />
-              <Space>
+              <div className="flex gap-2">
                 <Button 
-                  type="primary" 
                   onClick={handleAddVariable}
                   disabled={!newVariable.key.trim() || loading}
                 >
                   添加
                 </Button>
-                <Button onClick={() => setShowAddForm(false)}>
+                <Button variant="outline" onClick={() => setShowAddForm(false)}>
                   取消
                 </Button>
-              </Space>
-            </Space>
-          </div>
-        </>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Add button when not showing form */}
       {!showAddForm && currentEnvironmentConfig.variables.length > 0 && (
-        <>
-          <Divider />
-          <Button 
-            type="dashed" 
-            block 
-            icon={<PlusOutlined />}
-            onClick={() => setShowAddForm(true)}
-          >
-            添加环境变量
-          </Button>
-        </>
+        <Button 
+          variant="outline" 
+          className="w-full"
+          onClick={() => setShowAddForm(true)}
+        >
+          <Plus className="w-4 h-4 mr-1" />
+          添加环境变量
+        </Button>
       )}
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认删除</DialogTitle>
+            <DialogDescription>
+              确定要删除环境变量 "{variableToDelete}" 吗？此操作不可撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              取消
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => handleRemoveVariable(variableToDelete)}
+            >
+              删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
@@ -346,38 +367,41 @@ const VariableItem: React.FC<VariableItemProps> = ({
 
   if (isEditing) {
     return (
-      <div className="variable-edit" style={{ width: '100%' }}>
-        <div className="variable-key">{variable.key}</div>
-        <Space style={{ width: '100%' }}>
+      <div className="flex-1 space-y-2">
+        <div className="font-medium text-sm">{variable.key}</div>
+        <div className="flex gap-2">
           <Input
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
-            onPressEnter={() => onSave({ ...variable, value: editValue })}
-            style={{ flex: 1 }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                onSave({ ...variable, value: editValue });
+              }
+            }}
+            className="flex-1"
           />
           <Button 
-            type="text" 
-            size="small"
+            size="sm"
             onClick={() => onSave({ ...variable, value: editValue })}
           >
             保存
           </Button>
           <Button 
-            type="text" 
-            size="small"
+            variant="outline" 
+            size="sm"
             onClick={onCancel}
           >
             取消
           </Button>
-        </Space>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="variable-display">
-      <div className="variable-key">{variable.key}</div>
-      <div className="variable-value">{variable.value}</div>
+    <div className="flex-1">
+      <div className="font-medium text-sm">{variable.key}</div>
+      <div className="text-sm text-muted-foreground truncate">{variable.value}</div>
     </div>
   );
 };

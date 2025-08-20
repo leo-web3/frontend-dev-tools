@@ -1,26 +1,17 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
-  Switch, 
-  Button, 
-  Select, 
-  Space, 
-  Divider,
-  Input,
-  message,
-  Upload,
-  Download 
-} from 'antd';
-import type { UploadProps } from 'antd';
-import { 
-  DownloadOutlined,
-  UploadOutlined,
-  ReloadOutlined 
-} from '@ant-design/icons';
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Download, Upload, RotateCcw, ChevronDown, Info } from 'lucide-react';
 import { useExtensionStore } from '../hooks/useExtensionStore';
 import { storageManager } from '@/shared/storage';
-
-const { Option } = Select;
-const { TextArea } = Input;
 
 export const SettingsPanel: React.FC = () => {
   const {
@@ -31,6 +22,14 @@ export const SettingsPanel: React.FC = () => {
     updateGlobalSettings,
   } = useExtensionStore();
 
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   useEffect(() => {
     loadGlobalSettings();
   }, [loadGlobalSettings]);
@@ -38,18 +37,18 @@ export const SettingsPanel: React.FC = () => {
   const handleThemeChange = async (theme: 'light' | 'dark') => {
     try {
       await updateGlobalSettings({ theme });
-      message.success('主题设置已保存');
+      showToast('主题设置已保存', 'success');
     } catch (error) {
-      message.error('主题设置失败');
+      showToast('主题设置失败', 'error');
     }
   };
 
   const handleLanguageChange = async (language: 'zh' | 'en') => {
     try {
       await updateGlobalSettings({ language });
-      message.success('语言设置已保存');
+      showToast('语言设置已保存', 'success');
     } catch (error) {
-      message.error('语言设置失败');
+      showToast('语言设置失败', 'error');
     }
   };
 
@@ -57,9 +56,9 @@ export const SettingsPanel: React.FC = () => {
     try {
       const shortcuts = { ...globalSettings.shortcuts, [action]: shortcut };
       await updateGlobalSettings({ shortcuts });
-      message.success('快捷键设置已保存');
+      showToast('快捷键设置已保存', 'success');
     } catch (error) {
-      message.error('快捷键设置失败');
+      showToast('快捷键设置失败', 'error');
     }
   };
 
@@ -77,37 +76,36 @@ export const SettingsPanel: React.FC = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      message.success('配置导出成功');
+      showToast('配置导出成功', 'success');
     } catch (error) {
-      message.error('配置导出失败');
+      showToast('配置导出失败', 'error');
     }
   };
 
-  const uploadProps: UploadProps = {
-    accept: '.json',
-    beforeUpload: (file) => {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const content = e.target?.result as string;
-          await storageManager.importData(content);
-          message.success('配置导入成功，请刷新扩展');
-        } catch (error) {
-          message.error('配置导入失败：数据格式错误');
-        }
-      };
-      reader.readAsText(file);
-      return false;
-    },
-    showUploadList: false,
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const content = e.target?.result as string;
+        await storageManager.importData(content);
+        showToast('配置导入成功，请刷新扩展', 'success');
+      } catch (error) {
+        showToast('配置导入失败：数据格式错误', 'error');
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleResetSettings = async () => {
     try {
       await storageManager.clear();
-      message.success('设置已重置，请刷新扩展');
+      showToast('设置已重置，请刷新扩展', 'success');
+      setResetDialogOpen(false);
     } catch (error) {
-      message.error('设置重置失败');
+      showToast('设置重置失败', 'error');
     }
   };
 
@@ -115,187 +113,234 @@ export const SettingsPanel: React.FC = () => {
     try {
       const usage = await storageManager.getUsage();
       const usagePercent = (usage.bytesInUse / usage.quotaBytes * 100).toFixed(1);
-      message.info(`存储使用情况: ${usage.bytesInUse} / ${usage.quotaBytes} bytes (${usagePercent}%)`);
+      showToast(`存储使用情况: ${usage.bytesInUse} / ${usage.quotaBytes} bytes (${usagePercent}%)`, 'info');
     } catch (error) {
-      message.error('获取存储信息失败');
+      showToast('获取存储信息失败', 'error');
     }
   };
 
   return (
-    <div className="panel-content">
+    <div className="space-y-4">
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg ${
+          toast.type === 'success' ? 'bg-green-500 text-white' : 
+          toast.type === 'error' ? 'bg-red-500 text-white' :
+          'bg-blue-500 text-white'
+        }`}>
+          {toast.message}
+        </div>
+      )}
+
       {error && (
-        <div className="error-message">{error}</div>
+        <div className="p-3 bg-destructive/15 text-destructive rounded-md text-sm">{error}</div>
       )}
 
       {/* Appearance Settings */}
-      <div className="settings-section">
-        <h4>外观设置</h4>
-        <div className="setting-item">
-          <div className="setting-label">
-            <strong>主题</strong>
-            <div className="setting-description">选择扩展程序的外观主题</div>
-          </div>
-          <Select
-            value={globalSettings.theme}
-            onChange={handleThemeChange}
-            style={{ width: 120 }}
-          >
-            <Option value="light">浅色</Option>
-            <Option value="dark">深色</Option>
-          </Select>
-        </div>
+      <Card>
+        <CardContent className="p-4">
+          <h4 className="font-medium mb-4">外观设置</h4>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium text-sm">主题</div>
+                <div className="text-sm text-muted-foreground">选择扩展程序的外观主题</div>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    {globalSettings.theme === 'light' ? '浅色' : '深色'} <ChevronDown className="ml-1 w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => handleThemeChange('light')}>
+                    浅色
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleThemeChange('dark')}>
+                    深色
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
 
-        <div className="setting-item">
-          <div className="setting-label">
-            <strong>语言</strong>
-            <div className="setting-description">选择界面显示语言</div>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium text-sm">语言</div>
+                <div className="text-sm text-muted-foreground">选择界面显示语言</div>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    {globalSettings.language === 'zh' ? '中文' : 'English'} <ChevronDown className="ml-1 w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => handleLanguageChange('zh')}>
+                    中文
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleLanguageChange('en')}>
+                    English
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-          <Select
-            value={globalSettings.language}
-            onChange={handleLanguageChange}
-            style={{ width: 120 }}
-          >
-            <Option value="zh">中文</Option>
-            <Option value="en">English</Option>
-          </Select>
-        </div>
-      </div>
-
-      <Divider />
+        </CardContent>
+      </Card>
 
       {/* Keyboard Shortcuts */}
-      <div className="settings-section">
-        <h4>快捷键设置</h4>
-        <div className="shortcuts-settings">
-          <div className="setting-item">
-            <div className="setting-label">
-              <strong>切换CORS</strong>
+      <Card>
+        <CardContent className="p-4">
+          <h4 className="font-medium mb-4">快捷键设置</h4>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="font-medium text-sm">切换CORS</div>
+              <Input
+                value={globalSettings.shortcuts.toggleCors}
+                onChange={(e) => handleShortcutChange('toggleCors', e.target.value)}
+                placeholder="例如: Ctrl+Shift+C"
+                className="w-40"
+              />
             </div>
-            <Input
-              value={globalSettings.shortcuts.toggleCors}
-              onChange={(e) => handleShortcutChange('toggleCors', e.target.value)}
-              placeholder="例如: Ctrl+Shift+C"
-              style={{ width: 160 }}
-            />
-          </div>
 
-          <div className="setting-item">
-            <div className="setting-label">
-              <strong>切换环境变量</strong>
+            <div className="flex items-center justify-between">
+              <div className="font-medium text-sm">切换环境变量</div>
+              <Input
+                value={globalSettings.shortcuts.toggleEnvironment}
+                onChange={(e) => handleShortcutChange('toggleEnvironment', e.target.value)}
+                placeholder="例如: Ctrl+Shift+E"
+                className="w-40"
+              />
             </div>
-            <Input
-              value={globalSettings.shortcuts.toggleEnvironment}
-              onChange={(e) => handleShortcutChange('toggleEnvironment', e.target.value)}
-              placeholder="例如: Ctrl+Shift+E"
-              style={{ width: 160 }}
-            />
-          </div>
 
-          <div className="setting-item">
-            <div className="setting-label">
-              <strong>切换UI比对</strong>
+            <div className="flex items-center justify-between">
+              <div className="font-medium text-sm">切换UI比对</div>
+              <Input
+                value={globalSettings.shortcuts.toggleUIComparator}
+                onChange={(e) => handleShortcutChange('toggleUIComparator', e.target.value)}
+                placeholder="例如: Ctrl+Shift+U"
+                className="w-40"
+              />
             </div>
-            <Input
-              value={globalSettings.shortcuts.toggleUIComparator}
-              onChange={(e) => handleShortcutChange('toggleUIComparator', e.target.value)}
-              placeholder="例如: Ctrl+Shift+U"
-              style={{ width: 160 }}
-            />
           </div>
-        </div>
-      </div>
-
-      <Divider />
+        </CardContent>
+      </Card>
 
       {/* Data Management */}
-      <div className="settings-section">
-        <h4>数据管理</h4>
-        <div className="data-management">
-          <div className="setting-item">
-            <div className="setting-label">
-              <strong>导出配置</strong>
-              <div className="setting-description">
-                导出当前所有设置和配置到JSON文件
+      <Card>
+        <CardContent className="p-4">
+          <h4 className="font-medium mb-4">数据管理</h4>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium text-sm">导出配置</div>
+                <div className="text-sm text-muted-foreground">导出当前所有设置和配置到JSON文件</div>
+              </div>
+              <Button onClick={handleExportConfig} variant="outline" size="sm">
+                <Download className="w-4 h-4 mr-1" />
+                导出
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium text-sm">导入配置</div>
+                <div className="text-sm text-muted-foreground">从JSON文件导入设置和配置</div>
+              </div>
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleFileUpload}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <Button variant="outline" size="sm">
+                  <Upload className="w-4 h-4 mr-1" />
+                  导入
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium text-sm">存储使用情况</div>
+                <div className="text-sm text-muted-foreground">查看扩展程序的存储使用情况</div>
+              </div>
+              <Button onClick={getStorageUsage} variant="outline" size="sm">
+                <Info className="w-4 h-4 mr-1" />
+                查看
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Danger Zone */}
+      <Card className="border-destructive">
+        <CardContent className="p-4">
+          <h4 className="font-medium mb-4 text-destructive">危险操作</h4>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium text-sm">重置所有设置</div>
+              <div className="text-sm text-destructive">
+                这将清除所有配置数据，包括环境变量、CORS设置和UI图层
               </div>
             </div>
             <Button 
-              icon={<DownloadOutlined />}
-              onClick={handleExportConfig}
+              variant="destructive"
+              size="sm"
+              onClick={() => setResetDialogOpen(true)}
             >
-              导出
+              <RotateCcw className="w-4 h-4 mr-1" />
+              重置设置
             </Button>
           </div>
-
-          <div className="setting-item">
-            <div className="setting-label">
-              <strong>导入配置</strong>
-              <div className="setting-description">
-                从JSON文件导入设置和配置
-              </div>
-            </div>
-            <Upload {...uploadProps}>
-              <Button icon={<UploadOutlined />}>
-                导入
-              </Button>
-            </Upload>
-          </div>
-
-          <div className="setting-item">
-            <div className="setting-label">
-              <strong>存储使用情况</strong>
-              <div className="setting-description">
-                查看扩展程序的存储使用情况
-              </div>
-            </div>
-            <Button onClick={getStorageUsage}>
-              查看
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <Divider />
-
-      {/* Danger Zone */}
-      <div className="settings-section danger-zone">
-        <h4 style={{ color: '#ff4d4f' }}>危险操作</h4>
-        <div className="setting-item">
-          <div className="setting-label">
-            <strong>重置所有设置</strong>
-            <div className="setting-description" style={{ color: '#ff4d4f' }}>
-              这将清除所有配置数据，包括环境变量、CORS设置和UI图层
-            </div>
-          </div>
-          <Button 
-            danger
-            onClick={handleResetSettings}
-            icon={<ReloadOutlined />}
-          >
-            重置设置
-          </Button>
-        </div>
-      </div>
-
-      <Divider />
+        </CardContent>
+      </Card>
 
       {/* About */}
-      <div className="settings-section">
-        <h4>关于</h4>
-        <div className="about-info">
-          <div><strong>Frontend Dev Tools</strong></div>
-          <div>版本: 1.0.0</div>
-          <div>专为前端开发者设计的Chrome扩展工具</div>
-          <div style={{ marginTop: 12 }}>
-            <strong>功能特性：</strong>
-            <ul style={{ marginTop: 8, paddingLeft: 20 }}>
-              <li>环境变量管理和注入</li>
-              <li>跨域请求处理</li>
-              <li>UI设计稿像素级比对</li>
-              <li>浏览器尺寸快速调整</li>
-            </ul>
+      <Card>
+        <CardContent className="p-4">
+          <h4 className="font-medium mb-4">关于</h4>
+          <div className="space-y-2 text-sm">
+            <div className="font-medium">Frontend Dev Tools</div>
+            <div className="text-muted-foreground">版本: 1.0.0</div>
+            <div className="text-muted-foreground">专为前端开发者设计的Chrome扩展工具</div>
+            <div className="mt-4">
+              <div className="font-medium mb-2">功能特性：</div>
+              <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-4">
+                <li>环境变量管理和注入</li>
+                <li>跨域请求处理</li>
+                <li>UI设计稿像素级比对</li>
+                <li>浏览器尺寸快速调整</li>
+              </ul>
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
+
+      {/* Reset confirmation dialog */}
+      <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认重置</DialogTitle>
+            <DialogDescription>
+              这将清除所有配置数据，包括环境变量、CORS设置和UI图层。此操作不可撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetDialogOpen(false)}>
+              取消
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleResetSettings}
+            >
+              确认重置
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

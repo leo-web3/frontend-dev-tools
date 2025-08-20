@@ -1,33 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Slider } from '@/components/ui/slider';
 import { 
-  Button, 
-  Upload, 
-  Slider, 
-  Input, 
-  Space, 
-  List, 
-  Popconfirm,
-  Select,
-  message,
-  Divider,
-  Empty 
-} from 'antd';
-import type { UploadProps } from 'antd';
-import { 
-  UploadOutlined, 
-  DeleteOutlined, 
-  EyeOutlined,
-  EyeInvisibleOutlined,
-  LockOutlined,
-  UnlockOutlined,
-  CompressOutlined 
-} from '@ant-design/icons';
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle 
+} from '@/components/ui/dialog';
+import { Upload, Trash2, Eye, EyeOff, Lock, Unlock, Monitor } from 'lucide-react';
 import { UIOverlay } from '@/shared/types';
 import { useExtensionStore } from '../hooks/useExtensionStore';
 import { validateImageFile, readFileAsDataURL, generateId } from '@/shared/utils';
 import { UI_CONSTANTS } from '@/shared/constants';
-
-const { Option } = Select;
 
 export const UIComparatorPanel: React.FC = () => {
   const {
@@ -41,6 +28,15 @@ export const UIComparatorPanel: React.FC = () => {
   } = useExtensionStore();
 
   const [currentUrl, setCurrentUrl] = useState<string>('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [overlayToDelete, setOverlayToDelete] = useState<string>('');
+  const [clearAllDialogOpen, setClearAllDialogOpen] = useState(false);
+  const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   useEffect(() => {
     getCurrentUrl();
@@ -67,7 +63,7 @@ export const UIComparatorPanel: React.FC = () => {
     try {
       const errors = validateImageFile(file);
       if (errors.length > 0) {
-        message.error(errors[0]);
+        showToast(errors[0], 'error');
         return false;
       }
 
@@ -105,54 +101,56 @@ export const UIComparatorPanel: React.FC = () => {
       };
 
       await createOverlay(overlay);
-      message.success(`UI图片上传成功 (${width}×${height}px)`);
+      showToast(`UI图片上传成功 (${width}×${height}px)`, 'success');
       return false; // Prevent default upload behavior
     } catch (error) {
       console.error('Upload error:', error);
-      message.error('上传失败');
+      showToast('上传失败', 'error');
       return false;
     }
   };
 
-  const uploadProps: UploadProps = {
-    accept: UI_CONSTANTS.SUPPORTED_IMAGE_FORMATS.map(f => `.${f}`).join(','),
-    beforeUpload: handleImageUpload,
-    showUploadList: false,
-    multiple: false,
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      handleImageUpload(file);
+    }
   };
 
   const handleOpacityChange = async (overlayId: string, opacity: number) => {
     try {
       await updateOverlay(overlayId, { opacity: opacity / 100 });
     } catch (error) {
-      message.error('透明度调整失败');
+      showToast('透明度调整失败', 'error');
     }
   };
 
   const handleToggleVisibility = async (overlayId: string, visible: boolean) => {
     try {
       await updateOverlay(overlayId, { visible: !visible });
-      message.success(`图层已${!visible ? '显示' : '隐藏'}`);
+      showToast(`图层已${!visible ? '显示' : '隐藏'}`, 'success');
     } catch (error) {
-      message.error('操作失败');
+      showToast('操作失败', 'error');
     }
   };
 
   const handleToggleLock = async (overlayId: string, locked: boolean) => {
     try {
       await updateOverlay(overlayId, { locked: !locked });
-      message.success(`图层已${!locked ? '锁定' : '解锁'}`);
+      showToast(`图层已${!locked ? '锁定' : '解锁'}`, 'success');
     } catch (error) {
-      message.error('操作失败');
+      showToast('操作失败', 'error');
     }
   };
 
   const handleRemoveOverlay = async (overlayId: string) => {
     try {
       await removeOverlay(overlayId);
-      message.success('图层删除成功');
+      showToast('图层删除成功', 'success');
+      setDeleteDialogOpen(false);
+      setOverlayToDelete('');
     } catch (error) {
-      message.error('删除失败');
+      showToast('删除失败', 'error');
     }
   };
 
@@ -168,13 +166,13 @@ export const UIComparatorPanel: React.FC = () => {
       console.log('Browser size adjustment response:', response);
 
       if (response?.success) {
-        message.success(`浏览器尺寸已调整为 ${width}x${height}`);
+        showToast(`浏览器尺寸已调整为 ${width}x${height}`, 'success');
       } else {
-        message.error(response?.error || '尺寸调整失败');
+        showToast(response?.error || '尺寸调整失败', 'error');
       }
     } catch (error) {
       console.error('Browser size adjustment error:', error);
-      message.error('尺寸调整失败');
+      showToast('尺寸调整失败', 'error');
     }
   };
 
@@ -187,9 +185,9 @@ export const UIComparatorPanel: React.FC = () => {
         await updateOverlay(overlay.id, { visible: !shouldHide });
       }
 
-      message.success(`所有图层已${shouldHide ? '隐藏' : '显示'}`);
+      showToast(`所有图层已${shouldHide ? '隐藏' : '显示'}`, 'success');
     } catch (error) {
-      message.error('操作失败');
+      showToast('操作失败', 'error');
     }
   };
 
@@ -198,128 +196,193 @@ export const UIComparatorPanel: React.FC = () => {
       for (const overlay of currentOverlays) {
         await removeOverlay(overlay.id);
       }
-      message.success('所有图层已清除');
+      showToast('所有图层已清除', 'success');
+      setClearAllDialogOpen(false);
     } catch (error) {
-      message.error('清除失败');
+      showToast('清除失败', 'error');
     }
   };
 
   if (!currentUrl) {
     return (
-      <div className="panel-content">
-        <Empty 
-          description="无法获取当前页面信息"
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-        />
+      <div className="p-4 text-center">
+        <div className="text-muted-foreground">无法获取当前页面信息</div>
       </div>
     );
   }
 
   return (
-    <div className="panel-content">
+    <div className="space-y-4">
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg ${
+          toast.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+        }`}>
+          {toast.message}
+        </div>
+      )}
+
       {error && (
-        <div className="error-message">{error}</div>
+        <div className="p-3 bg-destructive/15 text-destructive rounded-md text-sm">{error}</div>
       )}
 
       {/* Upload section */}
-      <div className="panel-header">
-        <Upload.Dragger {...uploadProps} className="upload-area">
-          <p className="ant-upload-drag-icon">
-            <UploadOutlined />
-          </p>
-          <p className="ant-upload-text">点击或拖拽UI设计稿到此处</p>
-          <p className="ant-upload-hint">
-            支持格式: {UI_CONSTANTS.SUPPORTED_IMAGE_FORMATS.join(', ')}
-          </p>
-        </Upload.Dragger>
-      </div>
-
-      <Divider />
+      <Card>
+        <CardContent className="p-6">
+          <div className="relative border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center hover:border-muted-foreground/50 transition-colors">
+            <input
+              type="file"
+              accept={UI_CONSTANTS.SUPPORTED_IMAGE_FORMATS.map(f => `.${f}`).join(',')}
+              onChange={handleFileUpload}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+            <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-lg font-medium mb-2">点击或拖拽UI设计稿到此处</p>
+            <p className="text-sm text-muted-foreground">
+              支持格式: {UI_CONSTANTS.SUPPORTED_IMAGE_FORMATS.join(', ')}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Browser size adjustment */}
-      <div className="browser-size-section">
-        <h4>浏览器尺寸调整</h4>
-        <div className="size-buttons">
-          {UI_CONSTANTS.COMMON_SCREEN_SIZES.map(({ name, width, height }) => (
-            <Button
-              key={name}
-              size="small"
-              onClick={() => handleAdjustBrowserSize(width, height)}
-              className="size-button"
-            >
-              {name}<br />
-              <small>{width}x{height}</small>
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      <Divider />
+      <Card>
+        <CardContent className="p-4">
+          <h4 className="font-medium mb-3 flex items-center gap-2">
+            <Monitor className="w-4 h-4" />
+            浏览器尺寸调整
+          </h4>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+            {UI_CONSTANTS.COMMON_SCREEN_SIZES.map(({ name, width, height }) => (
+              <Button
+                key={name}
+                variant="outline"
+                size="sm"
+                onClick={() => handleAdjustBrowserSize(width, height)}
+                className="h-auto p-2 flex flex-col gap-1"
+              >
+                <span className="text-xs font-medium">{name}</span>
+                <span className="text-xs text-muted-foreground">{width}×{height}</span>
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Overlays management */}
-      <div className="overlays-section">
-        <div className="section-header">
-          <h4>图层管理 ({currentOverlays.length})</h4>
-          {currentOverlays.length > 0 && (
-            <Space>
-              <Button 
-                size="small" 
-                onClick={handleToggleAllOverlays}
-                icon={<EyeOutlined />}
-              >
-                切换显示
-              </Button>
-              <Popconfirm
-                title="确定清除所有图层？"
-                onConfirm={handleClearAllOverlays}
-                okText="确定"
-                cancelText="取消"
-              >
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="font-medium">图层管理 ({currentOverlays.length})</h4>
+            {currentOverlays.length > 0 && (
+              <div className="flex gap-2">
                 <Button 
-                  size="small" 
-                  danger
-                  icon={<DeleteOutlined />}
+                  variant="outline"
+                  size="sm" 
+                  onClick={handleToggleAllOverlays}
                 >
+                  <Eye className="w-4 h-4 mr-1" />
+                  切换显示
+                </Button>
+                <Button 
+                  variant="destructive"
+                  size="sm" 
+                  onClick={() => setClearAllDialogOpen(true)}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
                   清除全部
                 </Button>
-              </Popconfirm>
-            </Space>
-          )}
-        </div>
-
-        {currentOverlays.length === 0 ? (
-          <Empty 
-            description="暂无UI图层"
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-          />
-        ) : (
-          <List
-            size="small"
-            dataSource={currentOverlays}
-            renderItem={(overlay) => (
-              <OverlayItem
-                key={overlay.id}
-                overlay={overlay}
-                onOpacityChange={handleOpacityChange}
-                onToggleVisibility={handleToggleVisibility}
-                onToggleLock={handleToggleLock}
-                onRemove={handleRemoveOverlay}
-              />
+              </div>
             )}
-          />
-        )}
-      </div>
+          </div>
+
+          {currentOverlays.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="text-muted-foreground">暂无UI图层</div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {currentOverlays.map((overlay) => (
+                <OverlayItem
+                  key={overlay.id}
+                  overlay={overlay}
+                  onOpacityChange={handleOpacityChange}
+                  onToggleVisibility={handleToggleVisibility}
+                  onToggleLock={handleToggleLock}
+                  onRemove={(id) => {
+                    setOverlayToDelete(id);
+                    setDeleteDialogOpen(true);
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Keyboard shortcuts info */}
-      <Divider />
-      <div className="shortcuts-info">
-        <h4>快捷键</h4>
-        <div className="shortcuts-list">
-          <div><kbd>Ctrl+Shift+U</kbd> 切换所有图层显示/隐藏</div>
-          <div><kbd>Esc</kbd> 隐藏所有图层</div>
-          <div><strong>图层操作:</strong> 拖拽移动位置</div>
-        </div>
-      </div>
+      <Card>
+        <CardContent className="p-4">
+          <h4 className="font-medium mb-3">快捷键</h4>
+          <div className="space-y-1 text-sm">
+            <div>
+              <kbd className="px-2 py-1 bg-muted rounded text-xs">Ctrl+Shift+U</kbd> 切换所有图层显示/隐藏
+            </div>
+            <div>
+              <kbd className="px-2 py-1 bg-muted rounded text-xs">Esc</kbd> 隐藏所有图层
+            </div>
+            <div>
+              <strong>图层操作:</strong> 拖拽移动位置
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认删除</DialogTitle>
+            <DialogDescription>
+              确定要删除这个图层吗？此操作不可撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              取消
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => handleRemoveOverlay(overlayToDelete)}
+            >
+              删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Clear all confirmation dialog */}
+      <Dialog open={clearAllDialogOpen} onOpenChange={setClearAllDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认清除</DialogTitle>
+            <DialogDescription>
+              确定要清除所有图层吗？此操作不可撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setClearAllDialogOpen(false)}>
+              取消
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleClearAllOverlays}
+            >
+              清除全部
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
@@ -346,91 +409,87 @@ const OverlayItem: React.FC<OverlayItemProps> = ({
     setLocalOpacity(Math.round(overlay.opacity * 100));
   }, [overlay.opacity]);
 
-  const handleOpacityChange = (value: number) => {
-    setLocalOpacity(value);
-    onOpacityChange(overlay.id, value);
+  const handleOpacityChange = (value: number[]) => {
+    const newValue = value[0];
+    setLocalOpacity(newValue);
+    onOpacityChange(overlay.id, newValue);
   };
 
   return (
-    <List.Item className="overlay-item">
-      <div className="overlay-content">
-        {/* Overlay preview */}
-        <div className="overlay-preview">
-          <img 
-            src={overlay.imageUrl} 
-            alt="UI Overlay" 
-            style={{ 
-              width: 40, 
-              height: 40, 
-              objectFit: 'contain',
-              opacity: overlay.visible ? 1 : 0.3
-            }} 
-          />
-        </div>
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex gap-3">
+          {/* Overlay preview */}
+          <div className="flex-shrink-0">
+            <img 
+              src={overlay.imageUrl} 
+              alt="UI Overlay" 
+              className="w-10 h-10 object-contain rounded"
+              style={{ opacity: overlay.visible ? 1 : 0.3 }}
+            />
+          </div>
 
-        {/* Overlay info and controls */}
-        <div className="overlay-info">
-          <div className="overlay-title">
-            图层 {overlay.id.slice(-4)}
-            <div className="overlay-status">
+          {/* Overlay info and controls */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between mb-2">
+              <div className="font-medium text-sm">
+                图层 {overlay.id.slice(-4)}
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onToggleVisibility(overlay.id, overlay.visible)}
+                  title={overlay.visible ? '隐藏图层' : '显示图层'}
+                >
+                  {overlay.visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onToggleLock(overlay.id, overlay.locked)}
+                  title={overlay.locked ? '解锁图层' : '锁定图层'}
+                >
+                  {overlay.locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onRemove(overlay.id)}
+                  title="删除图层"
+                >
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="text-xs text-muted-foreground mb-2">
               {overlay.visible ? '显示' : '隐藏'} | 
               {overlay.locked ? '已锁定' : '可移动'} | 
               透明度 {localOpacity}%
             </div>
-          </div>
 
-          {/* Position and size info */}
-          <div className="overlay-details">
-            位置: ({overlay.position.x}, {overlay.position.y}) | 
-            尺寸: {overlay.size.width}×{overlay.size.height}
-          </div>
+            {/* Position and size info */}
+            <div className="text-xs text-muted-foreground mb-3">
+              位置: ({overlay.position.x}, {overlay.position.y}) | 
+              尺寸: {overlay.size.width}×{overlay.size.height}
+            </div>
 
-          {/* Opacity slider */}
-          <div className="opacity-control">
-            <span>透明度:</span>
-            <Slider
-              min={0}
-              max={100}
-              value={localOpacity}
-              onChange={handleOpacityChange}
-              style={{ flex: 1, margin: '0 12px' }}
-            />
-            <span>{localOpacity}%</span>
+            {/* Opacity slider */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground min-w-[3rem]">透明度:</span>
+              <Slider
+                value={[localOpacity]}
+                onValueChange={handleOpacityChange}
+                max={100}
+                step={1}
+                className="flex-1"
+              />
+              <span className="text-xs text-muted-foreground min-w-[2.5rem]">{localOpacity}%</span>
+            </div>
           </div>
         </div>
-
-        {/* Action buttons */}
-        <div className="overlay-actions">
-          <Button
-            type="text"
-            size="small"
-            icon={overlay.visible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
-            onClick={() => onToggleVisibility(overlay.id, overlay.visible)}
-            title={overlay.visible ? '隐藏图层' : '显示图层'}
-          />
-          <Button
-            type="text"
-            size="small"
-            icon={overlay.locked ? <LockOutlined /> : <UnlockOutlined />}
-            onClick={() => onToggleLock(overlay.id, overlay.locked)}
-            title={overlay.locked ? '解锁图层' : '锁定图层'}
-          />
-          <Popconfirm
-            title="确定删除这个图层？"
-            onConfirm={() => onRemove(overlay.id)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Button
-              type="text"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              title="删除图层"
-            />
-          </Popconfirm>
-        </div>
-      </div>
-    </List.Item>
+      </CardContent>
+    </Card>
   );
 };
