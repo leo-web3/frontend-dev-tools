@@ -61,7 +61,7 @@ export class DeviceSimulator {
   public setScale(scale: number): void {
     this.state.scale = Math.max(0.3, Math.min(1.2, scale));
     if (this.simulatorContainer) {
-      this.simulatorContainer.style.transform = `scale(${this.state.scale})`;
+      this.simulatorContainer.style.transform = `translate(-50%, -50%) scale(${this.state.scale})`;
     }
   }
 
@@ -69,194 +69,203 @@ export class DeviceSimulator {
     const styleId = "device-simulator-styles";
     if (document.getElementById(styleId)) return;
 
-    const styles = document.createElement("style");
-    styles.id = styleId;
-    styles.textContent = `
-      .device-simulator {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%) scale(0.8);
-        z-index: 999999;
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        transform-origin: center;
-        user-select: none;
-        pointer-events: auto;
+    const createStyleElement = () => {
+      if (!document.head) {
+        setTimeout(createStyleElement, 10);
+        return;
       }
 
-      .device-frame {
-        position: relative;
-        background: #1a1a1a;
-        border-radius: 40px;
-        padding: 4px;
-        box-shadow: 
-          0 0 0 8px #000,
-          0 0 0 10px #333,
-          0 20px 60px rgba(0, 0, 0, 0.5),
-          0 8px 25px rgba(0, 0, 0, 0.3);
-        transition: all 0.3s ease;
-      }
+      const styles = document.createElement("style");
+      styles.id = styleId;
+      styles.textContent = `
+        .device-simulator {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%) scale(0.8);
+          z-index: 999999;
+          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          transform-origin: center center;
+          user-select: none;
+          pointer-events: auto;
+        }
 
-      .device-frame.iphone {
-        border-radius: 45px;
-        background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
-      }
+        .device-frame {
+          position: relative;
+          background: #1a1a1a;
+          border-radius: 40px;
+          padding: 4px;
+          box-shadow: 
+            0 0 0 8px #000,
+            0 0 0 10px #333,
+            0 20px 60px rgba(0, 0, 0, 0.5),
+            0 8px 25px rgba(0, 0, 0, 0.3);
+          transition: all 0.3s ease;
+        }
 
-      .device-frame.ipad {
-        border-radius: 25px;
-        background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
-      }
+        .device-frame.iphone {
+          border-radius: 45px;
+          background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+        }
 
-      .device-frame.watch {
-        border-radius: 20px;
-        background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
-      }
+        .device-frame.ipad {
+          border-radius: 25px;
+          background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+        }
 
-      .device-screen {
-        position: relative;
-        background: #000;
-        border-radius: 35px;
-        overflow: hidden;
-        box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.1);
-        height: 100%;
-      }
+        .device-frame.watch {
+          border-radius: 20px;
+          background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+        }
 
-      .device-frame.iphone .device-screen {
-        border-radius: 35px;
-      }
+        .device-screen {
+          position: relative;
+          background: #000;
+          border-radius: 35px;
+          overflow: hidden;
+          box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.1);
+          height: 100%;
+        }
 
-      .device-frame.ipad .device-screen {
-        border-radius: 15px;
-      }
+        .device-frame.iphone .device-screen {
+          border-radius: 35px;
+        }
 
-      .device-frame.watch .device-screen {
-        border-radius: 12px;
-      }
+        .device-frame.ipad .device-screen {
+          border-radius: 15px;
+        }
 
-      .device-notch {
-        position: absolute;
-        top: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 130px;
-        height: 30px;
-        background: #000;
-        border-radius: 0 0 15px 15px;
-        z-index: 10;
-      }
+        .device-frame.watch .device-screen {
+          border-radius: 12px;
+        }
 
-      .device-notch.dynamic-island {
-        width: 120px;
-        height: 32px;
-        border-radius: 16px;
-        top: 8px;
-      }
+        .device-notch {
+          position: absolute;
+          top: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 130px;
+          height: 30px;
+          background: #000;
+          border-radius: 0 0 15px 15px;
+          z-index: 10;
+        }
 
-      .device-home-indicator {
-        position: absolute;
-        bottom: 8px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 134px;
-        height: 5px;
-        background: rgba(255, 255, 255, 0.3);
-        border-radius: 3px;
-        z-index: 10;
-      }
+        .device-notch.dynamic-island {
+          width: 120px;
+          height: 32px;
+          border-radius: 16px;
+          top: 8px;
+        }
 
-      .device-content {
-        width: 100%;
-        height: 100%;
-        border: none;
-        border-radius: inherit;
-        background: white;
-      }
+        .device-home-indicator {
+          position: absolute;
+          bottom: 8px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 134px;
+          height: 5px;
+          background: rgba(255, 255, 255, 0.3);
+          border-radius: 3px;
+          z-index: 10;
+        }
 
-      .device-simulator-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.8);
-        backdrop-filter: blur(20px);
-        z-index: 999998;
-        transition: opacity 0.3s ease;
-      }
+        .device-content {
+          width: 100%;
+          height: 100%;
+          border: none;
+          border-radius: inherit;
+          background: white;
+        }
 
-      .device-control-panel {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: rgba(0, 0, 0, 0.9);
-        backdrop-filter: blur(20px);
-        border-radius: 15px;
-        padding: 15px;
-        z-index: 1000000;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        min-width: 200px;
-      }
+        .device-simulator-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.8);
+          backdrop-filter: blur(20px);
+          z-index: 999998;
+          transition: opacity 0.3s ease;
+        }
 
-      .device-control-button {
-        background: rgba(255, 255, 255, 0.1);
-        border: none;
-        color: white;
-        padding: 8px 12px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 12px;
-        transition: background 0.2s ease;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
+        .device-control-panel {
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: rgba(0, 0, 0, 0.9);
+          backdrop-filter: blur(20px);
+          border-radius: 15px;
+          padding: 15px;
+          z-index: 1000000;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          min-width: 200px;
+        }
 
-      .device-control-button:hover {
-        background: rgba(255, 255, 255, 0.2);
-      }
+        .device-control-button {
+          background: rgba(255, 255, 255, 0.1);
+          border: none;
+          color: white;
+          padding: 8px 12px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 12px;
+          transition: background 0.2s ease;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
 
-      .device-control-button.active {
-        background: rgba(0, 122, 255, 0.8);
-      }
+        .device-control-button:hover {
+          background: rgba(255, 255, 255, 0.2);
+        }
 
-      .device-scale-control {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        color: white;
-        font-size: 12px;
-      }
+        .device-control-button.active {
+          background: rgba(0, 122, 255, 0.8);
+        }
 
-      .device-scale-slider {
-        flex: 1;
-        -webkit-appearance: none;
-        background: rgba(255, 255, 255, 0.2);
-        height: 4px;
-        border-radius: 2px;
-        outline: none;
-      }
+        .device-scale-control {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          color: white;
+          font-size: 12px;
+        }
 
-      .device-scale-slider::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        width: 16px;
-        height: 16px;
-        background: white;
-        border-radius: 50%;
-        cursor: pointer;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-      }
+        .device-scale-slider {
+          flex: 1;
+          -webkit-appearance: none;
+          background: rgba(255, 255, 255, 0.2);
+          height: 4px;
+          border-radius: 2px;
+          outline: none;
+        }
 
-      .device-info {
-        color: rgba(255, 255, 255, 0.8);
-        font-size: 11px;
-        text-align: center;
-        margin-bottom: 5px;
-      }
-    `;
+        .device-scale-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          width: 16px;
+          height: 16px;
+          background: white;
+          border-radius: 50%;
+          cursor: pointer;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
 
-    document.head.appendChild(styles);
+        .device-info {
+          color: rgba(255, 255, 255, 0.8);
+          font-size: 11px;
+          text-align: center;
+          margin-bottom: 5px;
+        }
+      `;
+
+      document.head.appendChild(styles);
+    };
+
+    createStyleElement();
   }
 
   private createSimulator(): void {
@@ -270,6 +279,9 @@ export class DeviceSimulator {
     // Create simulator container
     this.simulatorContainer = document.createElement("div");
     this.simulatorContainer.className = "device-simulator";
+    
+    // Apply current scale
+    this.simulatorContainer.style.transform = `translate(-50%, -50%) scale(${this.state.scale})`;
 
     // Create device frame
     this.deviceFrame = document.createElement("div");
