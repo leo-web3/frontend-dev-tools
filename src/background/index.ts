@@ -126,7 +126,7 @@ class BackgroundService {
           const getViewportDimensions = (retryCount = 0): Promise<any> => {
             return new Promise((resolveViewport) => {
               chrome.tabs.sendMessage(tab.id!, {
-                type: 'GET_VIEWPORT_DIMENSIONS'
+                type: MESSAGE_TYPES.GET_VIEWPORT_DIMENSIONS
               }, (response) => {
                 if (chrome.runtime.lastError || !response?.success) {
                   console.warn(`Failed to get viewport dimensions (attempt ${retryCount + 1}):`, chrome.runtime.lastError?.message);
@@ -279,20 +279,102 @@ class BackgroundService {
   ): Promise<ExtensionResponse> {
     console.log('Forwarding message to content script:', { message, tabId });
     
-    return new Promise((resolve) => {
-      chrome.tabs.sendMessage(tabId, message, (response) => {
-        if (chrome.runtime.lastError) {
-          console.error('Error forwarding to content script:', chrome.runtime.lastError);
-          resolve({
-            success: false,
-            error: chrome.runtime.lastError.message,
-          });
+    return new Promise(async (resolve) => {
+      // First check if content script is available
+      chrome.tabs.sendMessage(tabId, { type: MESSAGE_TYPES.PING }, async (response) => {
+        if (chrome.runtime.lastError || !response) {
+          console.warn('Content script not available, attempting injection:', chrome.runtime.lastError?.message);
+          
+          // Try to inject content script
+          const injectionResult = await this.injectContentScript(tabId);
+          if (!injectionResult.success) {
+            resolve({
+              success: false,
+              error: 'Content script not available. Please refresh the page to enable UI comparison features.',
+            });
+            return;
+          }
+          
+          // Wait a bit for the content script to initialize
+          setTimeout(() => {
+            this.sendMessageToContentScript(tabId, message, resolve);
+          }, 1000);
         } else {
-          console.log('Content script response:', response);
-          resolve(response || { success: true });
+          // Content script is available, send message directly
+          this.sendMessageToContentScript(tabId, message, resolve);
         }
       });
     });
+  }
+
+  private sendMessageToContentScript(
+    tabId: number, 
+    message: Message, 
+    resolve: (response: ExtensionResponse) => void
+  ): void {
+    chrome.tabs.sendMessage(tabId, message, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Error forwarding to content script:', chrome.runtime.lastError);
+        resolve({
+          success: false,
+          error: chrome.runtime.lastError.message,
+        });
+      } else {
+        console.log('Content script response:', response);
+        resolve(response || { success: true });
+      }
+    });
+  }
+
+  private async injectContentScript(tabId: number): Promise<ExtensionResponse> {
+    try {
+      // Get tab info to check if injection is possible
+      const tab = await new Promise<chrome.tabs.Tab>((resolve) => {
+        chrome.tabs.get(tabId, (tab) => {
+          if (chrome.runtime.lastError) {
+            resolve(null as any);
+          } else {
+            resolve(tab);
+          }
+        });
+      });
+
+      if (!tab || !tab.url) {
+        return {
+          success: false,
+          error: 'Unable to get tab information',
+        };
+      }
+
+      // Check if URL allows content script injection
+      if (tab.url.startsWith('chrome://') || 
+          tab.url.startsWith('chrome-extension://') || 
+          tab.url.startsWith('moz-extension://') || 
+          tab.url.startsWith('about:')) {
+        return {
+          success: false,
+          error: 'Cannot inject content script into browser internal pages',
+        };
+      }
+
+      console.log('Attempting to inject content script into tab:', tabId);
+
+      // Inject the content script
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ['content.js']
+      });
+
+      console.log('Content script injected successfully');
+      return { success: true };
+
+    } catch (error) {
+      console.error('Failed to inject content script:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to inject content script',
+      };
+    }
   }
 
   private async handleConfigMessage(message: Message): Promise<ExtensionResponse> {

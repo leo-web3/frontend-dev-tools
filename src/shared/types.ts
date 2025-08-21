@@ -37,7 +37,9 @@ export type MessageType =
   | 'GET_CURRENT_TAB'
   | 'ADJUST_BROWSER_SIZE'
   | 'SAVE_CONFIG'
-  | 'LOAD_CONFIG';
+  | 'LOAD_CONFIG'
+  | 'PING'
+  | 'GET_VIEWPORT_DIMENSIONS';
 
 export interface Message<T = any> {
   type: MessageType;

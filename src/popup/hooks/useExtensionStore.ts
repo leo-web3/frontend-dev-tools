@@ -101,14 +101,18 @@ export const useExtensionStore = create<ExtensionState>((set, get) => ({
   },
 
   createOverlay: async (overlay: UIOverlay) => {
-    console.log('Creating overlay in store:', overlay);
-    
-    const overlays = [...get().currentOverlays, overlay];
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    console.log('Current tab:', tab);
-    
-    if (tab.url) {
+    try {
+      console.log('Creating overlay in store:', overlay);
+      
+      const overlays = [...get().currentOverlays, overlay];
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      
+      console.log('Current tab:', tab);
+      
+      if (!tab.url) {
+        throw new Error('无法获取当前页面信息');
+      }
+
       await get().saveOverlays(tab.url, overlays);
       
       console.log('Sending CREATE_OVERLAY message to background script');
@@ -121,43 +125,97 @@ export const useExtensionStore = create<ExtensionState>((set, get) => ({
       });
       
       console.log('CREATE_OVERLAY response from background script:', response);
-    } else {
-      console.error('No tab URL found');
+
+      if (!response?.success) {
+        // Handle specific content script injection failures
+        if (response?.error?.includes('Content script not available')) {
+          throw new Error('插件需要页面刷新才能正常工作。请刷新页面后重试。');
+        } else if (response?.error?.includes('Cannot inject content script into browser internal pages')) {
+          throw new Error('此页面不支持UI比对功能（浏览器内部页面）');
+        } else {
+          throw new Error(response?.error || '创建图层失败');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to create overlay:', error);
+      const errorMessage = error instanceof Error ? error.message : '创建图层失败';
+      set({ error: errorMessage });
+      throw error;
     }
   },
 
   updateOverlay: async (id: string, updates: Partial<UIOverlay>) => {
-    const overlays = get().currentOverlays.map(overlay => 
-      overlay.id === id ? { ...overlay, ...updates } : overlay
-    );
-    
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    if (tab.url) {
+    try {
+      const overlays = get().currentOverlays.map(overlay => 
+        overlay.id === id ? { ...overlay, ...updates } : overlay
+      );
+      
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      
+      if (!tab.url) {
+        throw new Error('无法获取当前页面信息');
+      }
+
       await get().saveOverlays(tab.url, overlays);
       
       // Send message to content script
-      await chrome.runtime.sendMessage({
+      const response = await chrome.runtime.sendMessage({
         type: 'UPDATE_OVERLAY',
         payload: { id, updates },
         tabId: tab.id
       });
+
+      if (!response?.success) {
+        // Handle specific content script injection failures
+        if (response?.error?.includes('Content script not available')) {
+          throw new Error('插件需要页面刷新才能正常工作。请刷新页面后重试。');
+        } else if (response?.error?.includes('Cannot inject content script into browser internal pages')) {
+          throw new Error('此页面不支持UI比对功能（浏览器内部页面）');
+        } else {
+          throw new Error(response?.error || '更新图层失败');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update overlay:', error);
+      const errorMessage = error instanceof Error ? error.message : '更新图层失败';
+      set({ error: errorMessage });
+      throw error;
     }
   },
 
   removeOverlay: async (id: string) => {
-    const overlays = get().currentOverlays.filter(overlay => overlay.id !== id);
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    if (tab.url) {
+    try {
+      const overlays = get().currentOverlays.filter(overlay => overlay.id !== id);
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      
+      if (!tab.url) {
+        throw new Error('无法获取当前页面信息');
+      }
+
       await get().saveOverlays(tab.url, overlays);
       
       // Send message to content script
-      await chrome.runtime.sendMessage({
+      const response = await chrome.runtime.sendMessage({
         type: 'REMOVE_OVERLAY',
         payload: { id },
         tabId: tab.id
       });
+
+      if (!response?.success) {
+        // Handle specific content script injection failures
+        if (response?.error?.includes('Content script not available')) {
+          throw new Error('插件需要页面刷新才能正常工作。请刷新页面后重试。');
+        } else if (response?.error?.includes('Cannot inject content script into browser internal pages')) {
+          throw new Error('此页面不支持UI比对功能（浏览器内部页面）');
+        } else {
+          throw new Error(response?.error || '删除图层失败');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to remove overlay:', error);
+      const errorMessage = error instanceof Error ? error.message : '删除图层失败';
+      set({ error: errorMessage });
+      throw error;
     }
   },
 

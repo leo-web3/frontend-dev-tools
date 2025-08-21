@@ -47,7 +47,7 @@ class ContentScript {
         case MESSAGE_TYPES.TOGGLE_OVERLAY_VISIBILITY:
           return await this.uiComparator.toggleVisibility(payload.id);
 
-        case 'GET_VIEWPORT_DIMENSIONS':
+        case MESSAGE_TYPES.GET_VIEWPORT_DIMENSIONS:
           return {
             success: true,
             data: {
@@ -59,6 +59,13 @@ class ContentScript {
               screenWidth: window.screen.availWidth,
               screenHeight: window.screen.availHeight,
             },
+          };
+
+        case MESSAGE_TYPES.PING:
+          // Respond to content script availability check
+          return {
+            success: true,
+            data: 'Content script is available',
           };
 
         default:
