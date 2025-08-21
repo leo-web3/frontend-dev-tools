@@ -1,53 +1,6 @@
-import { EnvironmentVariable, ExtensionError } from './types';
-import { ENV_PATTERNS, ERROR_CODES, UI_CONSTANTS } from './constants';
+import { ExtensionError } from './types';
+import { ERROR_CODES, UI_CONSTANTS } from './constants';
 
-// Environment Variable Utilities
-export function parseEnvFile(content: string): EnvironmentVariable[] {
-  const variables: EnvironmentVariable[] = [];
-  const lines = content.split('\n');
-
-  lines.forEach((line, index) => {
-    // Skip comments and empty lines
-    if (ENV_PATTERNS.COMMENT.test(line) || ENV_PATTERNS.EMPTY_LINE.test(line)) {
-      return;
-    }
-
-    const match = line.match(ENV_PATTERNS.VARIABLE);
-    if (match) {
-      const [, key, rawValue] = match;
-      const value = unquoteValue(rawValue);
-      
-      variables.push({
-        key: key.trim(),
-        value: value.trim(),
-        enabled: true,
-      });
-    } else if (line.trim()) {
-      console.warn(`Invalid environment variable format at line ${index + 1}: ${line}`);
-    }
-  });
-
-  return variables;
-}
-
-function unquoteValue(value: string): string {
-  const quotedMatch = value.match(ENV_PATTERNS.QUOTED_VALUE);
-  return quotedMatch ? quotedMatch[2] : value;
-}
-
-export function validateEnvironmentVariable(variable: EnvironmentVariable): string[] {
-  const errors: string[] = [];
-
-  if (!variable.key || !variable.key.trim()) {
-    errors.push('Variable key is required');
-  }
-
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(variable.key)) {
-    errors.push('Variable key must start with a letter or underscore and contain only letters, numbers, and underscores');
-  }
-
-  return errors;
-}
 
 // URL and Domain Utilities
 export function getDomainFromUrl(url: string): string {
@@ -199,14 +152,3 @@ export function formatDate(date: Date): string {
   return date.toLocaleString();
 }
 
-// Validate CORS Origin
-export function validateCorsOrigin(origin: string): boolean {
-  if (origin === '*') return true;
-  
-  try {
-    new URL(origin);
-    return true;
-  } catch {
-    return false;
-  }
-}

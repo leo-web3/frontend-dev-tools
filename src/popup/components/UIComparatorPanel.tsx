@@ -100,11 +100,11 @@ export const UIComparatorPanel: React.FC = () => {
         locked: false,
       };
 
-      // Auto-adjust browser size to match design dimensions
-      await handleAdjustBrowserSize(width, height);
+      // Auto-adjust browser size to match design width only
+      await handleAdjustBrowserSize(width, null);
       
       await createOverlay(overlay);
-      showToast(`UI图片上传成功，窗口已调整为 ${width}×${height}px`, 'success');
+      showToast(`UI图片上传成功，窗口宽度已调整为 ${width}px`, 'success');
       return false; // Prevent default upload behavior
     } catch (error) {
       console.error('Upload error:', error);
@@ -157,7 +157,7 @@ export const UIComparatorPanel: React.FC = () => {
     }
   };
 
-  const handleAdjustBrowserSize = async (width: number, height: number) => {
+  const handleAdjustBrowserSize = async (width: number, height: number | null) => {
     try {
       console.log('Requesting browser size adjustment:', { width, height });
       
@@ -169,9 +169,17 @@ export const UIComparatorPanel: React.FC = () => {
       console.log('Browser size adjustment response:', response);
 
       if (response?.success) {
-        showToast(`浏览器尺寸已调整为 ${width}x${height}`, 'success');
+        const data = response.data;
+        const finalMessage = data?.screenConstrained 
+          ? `浏览器宽度已调整为 ${data.finalWidth}px (受屏幕尺寸限制)`
+          : height !== null 
+            ? `浏览器尺寸已调整为 ${width}x${height}` 
+            : `浏览器宽度已调整为 ${width}px`;
+        showToast(finalMessage, 'success');
       } else {
-        showToast(response?.error || '尺寸调整失败', 'error');
+        const errorMsg = response?.error || '尺寸调整失败';
+        console.error('Browser size adjustment failed:', errorMsg);
+        showToast(errorMsg, 'error');
       }
     } catch (error) {
       console.error('Browser size adjustment error:', error);

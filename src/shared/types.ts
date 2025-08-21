@@ -1,25 +1,3 @@
-// Environment Variables Types
-export interface EnvironmentVariable {
-  key: string;
-  value: string;
-  enabled: boolean;
-  domain?: string;
-}
-
-export interface EnvironmentConfig {
-  variables: EnvironmentVariable[];
-  globalEnabled: boolean;
-  autoInject: boolean;
-}
-
-// CORS Types
-export interface CorsConfig {
-  enabled: boolean;
-  allowedOrigins: string[];
-  allowedMethods: string[];
-  allowedHeaders: string[];
-  credentials: boolean;
-}
 
 // UI Comparator Types
 export interface UIOverlay {
@@ -39,10 +17,6 @@ export interface UIComparatorConfig {
 
 // Storage Schema
 export interface ExtensionStorage {
-  environments: {
-    [domain: string]: EnvironmentConfig;
-  };
-  corsSettings: CorsConfig;
   uiComparisons: {
     [url: string]: UIComparatorConfig;
   };
@@ -56,12 +30,10 @@ export interface ExtensionStorage {
 
 // Message Protocol Types
 export type MessageType = 
-  | 'INJECT_ENVIRONMENT'
   | 'CREATE_OVERLAY'
   | 'UPDATE_OVERLAY'
   | 'REMOVE_OVERLAY'
   | 'TOGGLE_OVERLAY_VISIBILITY'
-  | 'CORS_STATUS_CHANGED'
   | 'GET_CURRENT_TAB'
   | 'ADJUST_BROWSER_SIZE'
   | 'SAVE_CONFIG'

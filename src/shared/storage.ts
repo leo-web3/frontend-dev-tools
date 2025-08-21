@@ -1,8 +1,6 @@
 import { ExtensionStorage, StorageKey, DeepPartial, ExtensionError } from './types';
 import { 
   STORAGE_KEYS, 
-  DEFAULT_CORS_CONFIG, 
-  DEFAULT_ENVIRONMENT_CONFIG, 
   DEFAULT_GLOBAL_SETTINGS 
 } from './constants';
 import { createExtensionError } from './utils';
@@ -194,10 +192,6 @@ class StorageManager {
   // Private helper methods
   private getDefaultValue<K extends StorageKey>(key: K): ExtensionStorage[K] {
     switch (key) {
-      case STORAGE_KEYS.ENVIRONMENTS:
-        return {} as ExtensionStorage[K];
-      case STORAGE_KEYS.CORS_SETTINGS:
-        return DEFAULT_CORS_CONFIG as ExtensionStorage[K];
       case STORAGE_KEYS.UI_COMPARISONS:
         return {} as ExtensionStorage[K];
       case STORAGE_KEYS.GLOBAL_SETTINGS:
@@ -251,13 +245,6 @@ class StorageManager {
 export const storageManager = StorageManager.getInstance();
 
 // Export convenience functions
-export const getEnvironments = () => storageManager.get(STORAGE_KEYS.ENVIRONMENTS);
-export const setEnvironments = (environments: ExtensionStorage['environments']) => 
-  storageManager.set(STORAGE_KEYS.ENVIRONMENTS, environments);
-
-export const getCorsSettings = () => storageManager.get(STORAGE_KEYS.CORS_SETTINGS);
-export const setCorsSettings = (settings: ExtensionStorage['corsSettings']) => 
-  storageManager.set(STORAGE_KEYS.CORS_SETTINGS, settings);
 
 export const getUIComparisons = () => storageManager.get(STORAGE_KEYS.UI_COMPARISONS);
 export const setUIComparisons = (comparisons: ExtensionStorage['uiComparisons']) => 

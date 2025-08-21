@@ -1,29 +1,16 @@
 import { create } from 'zustand';
 import { 
-  EnvironmentVariable, 
-  EnvironmentConfig, 
-  CorsConfig, 
   UIOverlay,
   ExtensionStorage 
 } from '@/shared/types';
 import { 
   storageManager,
-  getEnvironments,
-  getCorsSettings,
   getUIComparisons,
   getGlobalSettings
 } from '@/shared/storage';
-import { DEFAULT_CORS_CONFIG, DEFAULT_ENVIRONMENT_CONFIG, DEFAULT_GLOBAL_SETTINGS, STORAGE_KEYS } from '@/shared/constants';
+import { DEFAULT_GLOBAL_SETTINGS, STORAGE_KEYS } from '@/shared/constants';
 
 interface ExtensionState {
-  // Environment variables
-  environments: ExtensionStorage['environments'];
-  currentEnvironmentConfig: EnvironmentConfig;
-  
-  // CORS settings
-  corsConfig: CorsConfig;
-  corsEnabled: boolean;
-  
   // UI Comparator
   uiComparisons: ExtensionStorage['uiComparisons'];
   currentOverlays: UIOverlay[];
@@ -39,19 +26,6 @@ interface ExtensionState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   
-  // Environment actions
-  loadEnvironmentConfig: (domain: string) => Promise<void>;
-  saveEnvironmentConfig: (domain: string, config: EnvironmentConfig) => Promise<void>;
-  addEnvironmentVariable: (domain: string, variable: EnvironmentVariable) => Promise<void>;
-  updateEnvironmentVariable: (domain: string, variable: EnvironmentVariable) => Promise<void>;
-  removeEnvironmentVariable: (domain: string, key: string) => Promise<void>;
-  toggleEnvironmentVariable: (domain: string, key: string) => Promise<void>;
-  toggleGlobalEnvironment: (domain: string, enabled: boolean) => Promise<void>;
-  
-  // CORS actions
-  loadCorsConfig: () => Promise<void>;
-  updateCorsConfig: (config: Partial<CorsConfig>) => Promise<void>;
-  toggleCors: (enabled: boolean) => Promise<void>;
   
   // UI Comparator actions
   loadOverlays: (url: string) => Promise<void>;
@@ -66,7 +40,7 @@ interface ExtensionState {
   
   // Tab memory actions
   saveLastActiveTab: (tabKey: string) => Promise<void>;
-  loadLastActiveTab: () => Promise<string>;
+  loadLastActiveTab: () => string;
   
   // Initialize store
   initializeStore: () => Promise<void>;
@@ -74,10 +48,6 @@ interface ExtensionState {
 
 export const useExtensionStore = create<ExtensionState>((set, get) => ({
   // Initial state
-  environments: {},
-  currentEnvironmentConfig: DEFAULT_ENVIRONMENT_CONFIG,
-  corsConfig: DEFAULT_CORS_CONFIG,
-  corsEnabled: false,
   uiComparisons: {},
   currentOverlays: [],
   globalSettings: DEFAULT_GLOBAL_SETTINGS,
@@ -88,138 +58,6 @@ export const useExtensionStore = create<ExtensionState>((set, get) => ({
   setLoading: (loading: boolean) => set({ loading }),
   setError: (error: string | null) => set({ error }),
 
-  // Environment actions
-  loadEnvironmentConfig: async (domain: string) => {
-    try {
-      set({ loading: true, error: null });
-      const environments = await getEnvironments();
-      const config = environments[domain] || DEFAULT_ENVIRONMENT_CONFIG;
-      
-      set({ 
-        environments, 
-        currentEnvironmentConfig: config, 
-        loading: false 
-      });
-    } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to load environment config',
-        loading: false 
-      });
-    }
-  },
-
-  saveEnvironmentConfig: async (domain: string, config: EnvironmentConfig) => {
-    try {
-      set({ loading: true, error: null });
-      const environments = get().environments;
-      environments[domain] = config;
-      
-      await storageManager.set(STORAGE_KEYS.ENVIRONMENTS, environments);
-      set({ 
-        environments, 
-        currentEnvironmentConfig: config, 
-        loading: false 
-      });
-    } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to save environment config',
-        loading: false 
-      });
-    }
-  },
-
-  addEnvironmentVariable: async (domain: string, variable: EnvironmentVariable) => {
-    const config = get().currentEnvironmentConfig;
-    const existingIndex = config.variables.findIndex(v => v.key === variable.key);
-    
-    if (existingIndex >= 0) {
-      config.variables[existingIndex] = variable;
-    } else {
-      config.variables.push(variable);
-    }
-    
-    await get().saveEnvironmentConfig(domain, config);
-  },
-
-  updateEnvironmentVariable: async (domain: string, variable: EnvironmentVariable) => {
-    const config = get().currentEnvironmentConfig;
-    const index = config.variables.findIndex(v => v.key === variable.key);
-    
-    if (index >= 0) {
-      config.variables[index] = variable;
-      await get().saveEnvironmentConfig(domain, config);
-    }
-  },
-
-  removeEnvironmentVariable: async (domain: string, key: string) => {
-    const config = get().currentEnvironmentConfig;
-    config.variables = config.variables.filter(v => v.key !== key);
-    await get().saveEnvironmentConfig(domain, config);
-  },
-
-  toggleEnvironmentVariable: async (domain: string, key: string) => {
-    const config = get().currentEnvironmentConfig;
-    const variable = config.variables.find(v => v.key === key);
-    
-    if (variable) {
-      variable.enabled = !variable.enabled;
-      await get().saveEnvironmentConfig(domain, config);
-    }
-  },
-
-  toggleGlobalEnvironment: async (domain: string, enabled: boolean) => {
-    const config = get().currentEnvironmentConfig;
-    config.globalEnabled = enabled;
-    await get().saveEnvironmentConfig(domain, config);
-  },
-
-  // CORS actions
-  loadCorsConfig: async () => {
-    try {
-      set({ loading: true, error: null });
-      const config = await getCorsSettings();
-      set({ 
-        corsConfig: config, 
-        corsEnabled: config.enabled, 
-        loading: false 
-      });
-    } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to load CORS config',
-        loading: false 
-      });
-    }
-  },
-
-  updateCorsConfig: async (updates: Partial<CorsConfig>) => {
-    try {
-      set({ loading: true, error: null });
-      const newConfig = { ...get().corsConfig, ...updates };
-      
-      await storageManager.set(STORAGE_KEYS.CORS_SETTINGS, newConfig);
-      
-      // Notify background script of the change
-      await chrome.runtime.sendMessage({
-        type: 'CORS_STATUS_CHANGED',
-        payload: { enabled: newConfig.enabled }
-      });
-      
-      set({ 
-        corsConfig: newConfig, 
-        corsEnabled: newConfig.enabled, 
-        loading: false 
-      });
-    } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to update CORS config',
-        loading: false 
-      });
-    }
-  },
-
-  toggleCors: async (enabled: boolean) => {
-    await get().updateCorsConfig({ enabled });
-  },
 
   // UI Comparator actions
   loadOverlays: async (url: string) => {
@@ -362,7 +200,7 @@ export const useExtensionStore = create<ExtensionState>((set, get) => ({
 
   loadLastActiveTab: () => {
     const settings = get().globalSettings;
-    return settings.lastActiveTab || 'environment';
+    return settings.lastActiveTab || 'ui-comparator';
   },
 
   // Initialize store
@@ -371,10 +209,7 @@ export const useExtensionStore = create<ExtensionState>((set, get) => ({
       set({ loading: true, error: null });
       
       // Load all initial data
-      await Promise.all([
-        get().loadCorsConfig(),
-        get().loadGlobalSettings(),
-      ]);
+      await get().loadGlobalSettings();
       
       set({ loading: false });
     } catch (error) {
