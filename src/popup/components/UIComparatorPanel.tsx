@@ -105,7 +105,6 @@ export const UIComparatorPanel: React.FC = () => {
       // Auto-adjust browser size to match design width only
       await handleAdjustBrowserSize(width, null);
 
-      console.log("Creating new overlay after clearing:", overlay);
       await createOverlay(overlay);
       showToast(`${t("ui_comparator.upload.success")} ${width}px`, "success");
       return false; // Prevent default upload behavior
@@ -133,33 +132,23 @@ export const UIComparatorPanel: React.FC = () => {
 
   const handleToggleVisibility = async (overlayId: string, visible: boolean) => {
     try {
-      console.log('[Popup] handleToggleVisibility called:', { overlayId, visible, newVisible: !visible });
-      
       const newVisible = !visible;
-      
+
       if (newVisible) {
-        // If we're making this overlay visible, first hide all other visible overlays
-        console.log('[Popup] Making overlay visible, hiding others first');
-        
         for (const overlay of currentOverlays) {
           if (overlay.id !== overlayId && overlay.visible) {
-            console.log(`[Popup] Hiding overlay ${overlay.id}`);
             await updateOverlay(overlay.id, { visible: false });
           }
         }
       }
-      
-      // Now toggle the target overlay
-      console.log(`[Popup] Setting overlay ${overlayId} visible to ${newVisible}`);
+
       await updateOverlay(overlayId, { visible: newVisible });
-      
+
       showToast(
         newVisible ? t("toast.layer_toggled_visible") : t("toast.layer_toggled_hidden"),
         "success"
       );
-      console.log('[Popup] Visibility toggle completed successfully');
     } catch (error) {
-      console.error('[Popup] Failed to toggle visibility:', error);
       showToast(t("toast.operation_failed"), "error");
     }
   };
@@ -186,31 +175,44 @@ export const UIComparatorPanel: React.FC = () => {
 
   const handleAdjustBrowserSize = async (width: number, height: number | null) => {
     try {
-      console.log("Requesting browser size adjustment:", { width, height });
-
       const response = await chrome.runtime.sendMessage({
         type: "ADJUST_BROWSER_SIZE",
         payload: { width, height },
       });
-
-      console.log("Browser size adjustment response:", response);
-
       if (response?.success) {
         const data = response.data;
         const finalMessage = data?.screenConstrained
-          ? `浏览器宽度已调整为 ${data.finalWidth}px (受屏幕尺寸限制)`
+          ? `${t("toast.browser_size_adjusted")} ${data.finalWidth}px (${t(
+              "ui_comparator.screen_limited"
+            )})`
           : height !== null
-          ? `浏览器尺寸已调整为 ${width}x${height}`
-          : `浏览器宽度已调整为 ${width}px`;
+          ? `${t("toast.browser_size_adjusted")} ${width}x${height}`
+          : `${t("toast.browser_size_adjusted")} ${width}px`;
         showToast(finalMessage, "success");
       } else {
-        const errorMsg = response?.error || "尺寸调整失败";
-        console.error("Browser size adjustment failed:", errorMsg);
+        const errorMsg = response?.error || t("error.size_adjust_failed");
         showToast(errorMsg, "error");
       }
     } catch (error) {
-      console.error("Browser size adjustment error:", error);
-      showToast("尺寸调整失败", "error");
+      showToast(t("error.size_adjust_failed"), "error");
+    }
+  };
+
+  const handleToggleAllOverlays = async () => {
+    try {
+      const visibleCount = currentOverlays.filter((o) => o.visible).length;
+      const shouldHide = visibleCount > 0;
+
+      for (const overlay of currentOverlays) {
+        await updateOverlay(overlay.id, { visible: !shouldHide });
+      }
+
+      showToast(
+        shouldHide ? t("toast.all_layers_hidden") : t("toast.all_layers_visible"),
+        "success"
+      );
+    } catch (error) {
+      showToast(t("toast.operation_failed"), "error");
     }
   };
 
@@ -229,7 +231,7 @@ export const UIComparatorPanel: React.FC = () => {
   if (!currentUrl) {
     return (
       <div className="p-4 text-center">
-        <div className="text-muted-foreground">无法获取当前页面信息</div>
+        <div className="text-muted-foreground">{t("ui_comparator.no_page_info")}</div>
       </div>
     );
   }
@@ -286,7 +288,8 @@ export const UIComparatorPanel: React.FC = () => {
               {t("ui_comparator.upload.title")}
             </p>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              支持格式：{UI_CONSTANTS.SUPPORTED_IMAGE_FORMATS.join("、")}
+              {t("ui_comparator.formats")}
+              {UI_CONSTANTS.SUPPORTED_IMAGE_FORMATS.join("、")}
             </p>
           </div>
         </CardContent>
@@ -342,6 +345,17 @@ export const UIComparatorPanel: React.FC = () => {
             </div>
             {currentOverlays.length > 0 && (
               <div className="flex gap-2">
+                {currentOverlays.some((overlay) => overlay.visible) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleToggleAllOverlays}
+                    className="rounded-xl border border-border/50 hover:border-border hover:bg-muted/50"
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    {t("ui_comparator.shortcuts.hide_all")}
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -357,7 +371,7 @@ export const UIComparatorPanel: React.FC = () => {
 
           {currentOverlays.length === 0 ? (
             <div className="text-center py-8">
-              <div className="text-muted-foreground">暂无UI图层</div>
+              <div className="text-muted-foreground">{t("ui_comparator.no_layers")}</div>
             </div>
           ) : (
             <div className="space-y-2">
@@ -398,7 +412,7 @@ export const UIComparatorPanel: React.FC = () => {
               </kbd>
             </div>
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/30">
-              <span className="text-sm text-muted-foreground">隐藏所有图层</span>
+              <span className="text-sm text-muted-foreground">{t("ui_comparator.hide_all")}</span>
               <kbd className="px-3 py-1.5 bg-background border border-border rounded-lg text-xs font-mono shadow-sm">
                 Esc
               </kbd>
@@ -406,7 +420,9 @@ export const UIComparatorPanel: React.FC = () => {
             <div className="p-3 rounded-xl bg-muted/30 border border-border/30">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-primary rounded-full"></div>
-                <span className="text-sm text-muted-foreground">拖拽移动图层位置</span>
+                <span className="text-sm text-muted-foreground">
+                  {t("ui_comparator.drag_to_move")}
+                </span>
               </div>
             </div>
           </div>
@@ -538,14 +554,18 @@ const OverlayItem: React.FC<OverlayItemProps> = ({
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className="font-medium text-sm">图层 {overlay.id.slice(-4)}</div>
+                <div className="font-medium text-sm">
+                  {t("ui_comparator.layer_prefix")} {overlay.id.slice(-4)}
+                </div>
               </div>
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => onToggleVisibility(overlay.id, overlay.visible)}
-                  title={overlay.visible ? "隐藏图层" : "显示图层"}
+                  title={
+                    overlay.visible ? t("ui_comparator.hide_layer") : t("ui_comparator.show_layer")
+                  }
                 >
                   {overlay.visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                 </Button>
@@ -553,7 +573,9 @@ const OverlayItem: React.FC<OverlayItemProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => onToggleLock(overlay.id, overlay.locked)}
-                  title={overlay.locked ? "解锁图层" : "锁定图层"}
+                  title={
+                    overlay.locked ? t("ui_comparator.unlock_layer") : t("ui_comparator.lock_layer")
+                  }
                 >
                   {overlay.locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
                 </Button>
@@ -561,7 +583,7 @@ const OverlayItem: React.FC<OverlayItemProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => onRemove(overlay.id)}
-                  title="删除图层"
+                  title={t("ui_comparator.delete_layer")}
                 >
                   <Trash2 className="w-4 h-4 text-destructive" />
                 </Button>
@@ -569,19 +591,22 @@ const OverlayItem: React.FC<OverlayItemProps> = ({
             </div>
 
             <div className="text-xs text-muted-foreground mb-2">
-              {overlay.visible ? "显示" : "隐藏"} |{overlay.locked ? "已锁定" : "可移动"} | 透明度{" "}
-              {localOpacity}%
+              {overlay.visible ? t("ui_comparator.visible") : t("ui_comparator.hidden")} |{" "}
+              {overlay.locked ? t("ui_comparator.locked") : t("ui_comparator.movable")} |{" "}
+              {t("ui_comparator.opacity")} {localOpacity}%
             </div>
 
             {/* Position and size info */}
             <div className="text-xs text-muted-foreground mb-3">
-              位置: ({overlay.position.x}, {overlay.position.y}) | 尺寸: {overlay.size.width}×
-              {overlay.size.height}
+              {t("ui_comparator.position")}: ({overlay.position.x}, {overlay.position.y}) |{" "}
+              {t("ui_comparator.size")}: {overlay.size.width}×{overlay.size.height}
             </div>
 
             {/* Opacity slider */}
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground min-w-[3rem]">透明度:</span>
+              <span className="text-xs text-muted-foreground min-w-[3rem]">
+                {t("ui_comparator.opacity")}:
+              </span>
               <Slider
                 value={[localOpacity]}
                 onValueChange={handleOpacityChange}

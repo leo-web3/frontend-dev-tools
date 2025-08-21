@@ -13,10 +13,12 @@ import { storageManager } from "@/shared/storage";
 import { Download, Info, RotateCcw, Upload } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useExtensionStore } from "../hooks/useExtensionStore";
+import { useI18n } from "../hooks/useI18n";
 
 export const SettingsPanel: React.FC = () => {
   const { globalSettings, loading, error, loadGlobalSettings, updateGlobalSettings } =
     useExtensionStore();
+  const { t } = useI18n();
 
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [toast, setToast] = useState<{
@@ -36,18 +38,18 @@ export const SettingsPanel: React.FC = () => {
   const handleThemeChange = async (theme: "light" | "dark") => {
     try {
       await updateGlobalSettings({ theme });
-      showToast("主题设置已保存", "success");
+      showToast(t("toast.theme_saved"), "success");
     } catch (error) {
-      showToast("主题设置失败", "error");
+      showToast(t("toast.theme_failed"), "error");
     }
   };
 
   const handleLanguageChange = async (language: "zh" | "en") => {
     try {
       await updateGlobalSettings({ language });
-      showToast("语言设置已保存", "success");
+      showToast(t("toast.language_saved"), "success");
     } catch (error) {
-      showToast("语言设置失败", "error");
+      showToast(t("toast.language_failed"), "error");
     }
   };
 
@@ -55,9 +57,9 @@ export const SettingsPanel: React.FC = () => {
     try {
       const shortcuts = { ...globalSettings.shortcuts, [action]: shortcut };
       await updateGlobalSettings({ shortcuts });
-      showToast("快捷键设置已保存", "success");
+      showToast(t("toast.shortcut_saved"), "success");
     } catch (error) {
-      showToast("快捷键设置失败", "error");
+      showToast(t("toast.shortcut_failed"), "error");
     }
   };
 
@@ -75,9 +77,9 @@ export const SettingsPanel: React.FC = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      showToast("配置导出成功", "success");
+      showToast(t("toast.config_exported"), "success");
     } catch (error) {
-      showToast("配置导出失败", "error");
+      showToast(t("toast.config_export_failed"), "error");
     }
   };
 
@@ -90,9 +92,9 @@ export const SettingsPanel: React.FC = () => {
       try {
         const content = e.target?.result as string;
         await storageManager.importData(content);
-        showToast("配置导入成功，请刷新扩展", "success");
+        showToast(t("toast.config_imported"), "success");
       } catch (error) {
-        showToast("配置导入失败：数据格式错误", "error");
+        showToast(t("toast.config_import_failed"), "error");
       }
     };
     reader.readAsText(file);
@@ -101,10 +103,10 @@ export const SettingsPanel: React.FC = () => {
   const handleResetSettings = async () => {
     try {
       await storageManager.clear();
-      showToast("设置已重置，请刷新扩展", "success");
+      showToast(t("toast.settings_reset"), "success");
       setResetDialogOpen(false);
     } catch (error) {
-      showToast("设置重置失败", "error");
+      showToast(t("toast.settings_reset_failed"), "error");
     }
   };
 
@@ -113,11 +115,11 @@ export const SettingsPanel: React.FC = () => {
       const usage = await storageManager.getUsage();
       const usagePercent = ((usage.bytesInUse / usage.quotaBytes) * 100).toFixed(1);
       showToast(
-        `存储使用情况: ${usage.bytesInUse} / ${usage.quotaBytes} bytes (${usagePercent}%)`,
+        `${t("toast.storage_info")}: ${usage.bytesInUse} / ${usage.quotaBytes} bytes (${usagePercent}%)`,
         "info"
       );
     } catch (error) {
-      showToast("获取存储信息失败", "error");
+      showToast(t("toast.storage_info_failed"), "error");
     }
   };
 
@@ -144,14 +146,14 @@ export const SettingsPanel: React.FC = () => {
       {/* Keyboard Shortcuts */}
       <Card>
         <CardContent className="p-4">
-          <h4 className="font-medium mb-4">快捷键设置</h4>
+          <h4 className="font-medium mb-4">{t("settings.shortcuts")}</h4>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <div className="font-medium text-sm">切换UI比对</div>
+              <div className="font-medium text-sm">{t("settings.toggle_ui_comparison")}</div>
               <Input
                 value={globalSettings.shortcuts.toggleUIComparator}
                 onChange={(e) => handleShortcutChange("toggleUIComparator", e.target.value)}
-                placeholder="例如: Ctrl+Shift+U"
+                placeholder={t("settings.shortcut_placeholder")}
                 className="w-40"
               />
             </div>
@@ -162,25 +164,25 @@ export const SettingsPanel: React.FC = () => {
       {/* Data Management */}
       <Card>
         <CardContent className="p-4">
-          <h4 className="font-medium mb-4">数据管理</h4>
+          <h4 className="font-medium mb-4">{t("settings.data_management")}</h4>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium text-sm">导出配置</div>
+                <div className="font-medium text-sm">{t("settings.export_config")}</div>
                 <div className="text-sm text-muted-foreground">
-                  导出当前所有设置和配置到JSON文件
+                  {t("settings.export_config_desc")}
                 </div>
               </div>
               <Button onClick={handleExportConfig} variant="outline" size="sm">
                 <Download className="w-4 h-4 mr-1" />
-                导出
+                {t("settings.export")}
               </Button>
             </div>
 
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium text-sm">导入配置</div>
-                <div className="text-sm text-muted-foreground">从JSON文件导入设置和配置</div>
+                <div className="font-medium text-sm">{t("settings.import_config")}</div>
+                <div className="text-sm text-muted-foreground">{t("settings.import_config_desc")}</div>
               </div>
               <div className="relative">
                 <input
@@ -191,19 +193,19 @@ export const SettingsPanel: React.FC = () => {
                 />
                 <Button variant="outline" size="sm">
                   <Upload className="w-4 h-4 mr-1" />
-                  导入
+                  {t("settings.import")}
                 </Button>
               </div>
             </div>
 
             <div className="flex items-center justify-between">
               <div>
-                <div className="font-medium text-sm">存储使用情况</div>
-                <div className="text-sm text-muted-foreground">查看扩展程序的存储使用情况</div>
+                <div className="font-medium text-sm">{t("settings.storage_usage")}</div>
+                <div className="text-sm text-muted-foreground">{t("settings.storage_usage_desc")}</div>
               </div>
               <Button onClick={getStorageUsage} variant="outline" size="sm">
                 <Info className="w-4 h-4 mr-1" />
-                查看
+                {t("settings.view")}
               </Button>
             </div>
           </div>
@@ -213,17 +215,17 @@ export const SettingsPanel: React.FC = () => {
       {/* Danger Zone */}
       <Card className="border-destructive">
         <CardContent className="p-4">
-          <h4 className="font-medium mb-4 text-destructive">危险操作</h4>
+          <h4 className="font-medium mb-4 text-destructive">{t("settings.danger_zone")}</h4>
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-medium text-sm">重置所有设置</div>
+              <div className="font-medium text-sm">{t("settings.reset_settings")}</div>
               <div className="text-sm text-destructive">
-                这将清除所有配置数据，包括UI图层和扩展设置
+                {t("settings.reset_settings_desc")}
               </div>
             </div>
             <Button variant="destructive" size="sm" onClick={() => setResetDialogOpen(true)}>
               <RotateCcw className="w-4 h-4 mr-1" />
-              重置设置
+              {t("settings.reset")}
             </Button>
           </div>
         </CardContent>
@@ -232,18 +234,18 @@ export const SettingsPanel: React.FC = () => {
       {/* About */}
       <Card>
         <CardContent className="p-4">
-          <h4 className="font-medium mb-4">关于</h4>
+          <h4 className="font-medium mb-4">{t("settings.about")}</h4>
           <div className="space-y-2 text-sm">
             <div className="font-medium">Frontend Dev Tools</div>
-            <div className="text-muted-foreground">版本: 1.0.0</div>
-            <div className="text-muted-foreground">专为前端开发者设计的Chrome扩展工具</div>
+            <div className="text-muted-foreground">{t("settings.version")}: 1.0.0</div>
+            <div className="text-muted-foreground">{t("settings.description")}</div>
             <div className="mt-4">
-              <div className="font-medium mb-2">功能特性：</div>
+              <div className="font-medium mb-2">{t("settings.features")}</div>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-4">
-                <li>UI设计稿像素级比对</li>
-                <li>浏览器尺寸快速调整</li>
-                <li>图层管理和控制</li>
-                <li>响应式设计辅助</li>
+                <li>{t("settings.feature_ui_compare")}</li>
+                <li>{t("settings.feature_browser_size")}</li>
+                <li>{t("settings.feature_layer_management")}</li>
+                <li>{t("settings.feature_responsive")}</li>
               </ul>
             </div>
           </div>
@@ -254,17 +256,17 @@ export const SettingsPanel: React.FC = () => {
       <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>确认重置</DialogTitle>
+            <DialogTitle>{t("settings.reset_confirm_title")}</DialogTitle>
             <DialogDescription>
-              这将清除所有配置数据，包括UI图层和扩展设置。此操作不可撤销。
+              {t("settings.reset_confirm_desc")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setResetDialogOpen(false)}>
-              取消
+              {t("common.cancel")}
             </Button>
             <Button variant="destructive" onClick={handleResetSettings}>
-              确认重置
+              {t("settings.reset_confirm_title")}
             </Button>
           </DialogFooter>
         </DialogContent>

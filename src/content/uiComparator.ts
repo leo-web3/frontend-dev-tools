@@ -27,8 +27,6 @@ export class UIComparator {
 
   async createOverlay(overlayData: UIOverlay): Promise<ExtensionResponse> {
     try {
-      console.log("Creating overlay with data:", overlayData);
-
       // Wait for document.body to be available
       const appendOverlayWhenReady = () => {
         return new Promise<void>((resolve) => {
@@ -41,7 +39,7 @@ export class UIComparator {
 
               // Store overlay data
               this.overlayData.set(overlayData.id, overlayData);
-              
+
               // If this overlay is visible, hide other overlays and show this one
               if (overlayData.visible) {
                 // Hide other visible overlays
@@ -50,10 +48,10 @@ export class UIComparator {
                     this.overlayData.set(id, { ...data, visible: false });
                   }
                 });
-                
+
                 const overlayWrapper = this.createOrUpdateOverlayElement(overlayData);
                 this.currentOverlayElement = overlayWrapper;
-                
+
                 // Add to DOM if not already there
                 if (!document.body.contains(overlayWrapper)) {
                   document.body.appendChild(overlayWrapper);
@@ -64,8 +62,6 @@ export class UIComparator {
               this.updateGlobalMenuVisibility();
               this.refreshLayerMenu();
 
-              console.log("Overlay created:", overlayData.id, "Visible:", overlayData.visible);
-              console.log("Total overlays:", this.overlayData.size);
               resolve();
             } else {
               setTimeout(checkBodyReady, 10);
@@ -103,9 +99,9 @@ export class UIComparator {
       // Update overlay data
       const updatedOverlay = { ...overlayData, ...updates };
       this.overlayData.set(id, updatedOverlay);
-      
+
       // Handle visibility changes
-      if (updates.hasOwnProperty('visible')) {
+      if (updates.hasOwnProperty("visible")) {
         if (updates.visible) {
           // Show this overlay: hide other visible overlays first
           this.overlayData.forEach((data, otherId) => {
@@ -113,11 +109,11 @@ export class UIComparator {
               this.overlayData.set(otherId, { ...data, visible: false });
             }
           });
-          
+
           // Show this overlay
           const overlayElement = this.createOrUpdateOverlayElement(updatedOverlay);
           this.currentOverlayElement = overlayElement;
-          
+
           if (!document.body.contains(overlayElement)) {
             document.body.appendChild(overlayElement);
           }
@@ -155,7 +151,7 @@ export class UIComparator {
           this.currentOverlayElement.remove();
           this.currentOverlayElement = null;
         }
-        
+
         // Remove from data storage
         this.overlayData.delete(id);
       }
@@ -179,8 +175,6 @@ export class UIComparator {
 
   async toggleVisibility(id: string): Promise<ExtensionResponse> {
     try {
-      console.log(`[Content] toggleVisibility called for overlay ${id}`);
-      
       const overlayData = this.overlayData.get(id);
       if (!overlayData) {
         console.error(`[Content] Overlay ${id} not found in overlayData`);
@@ -190,63 +184,57 @@ export class UIComparator {
         };
       }
 
-      console.log(`[Content] Current overlay data:`, overlayData);
-
       // Update the overlay data
       const newVisible = !overlayData.visible;
       const updatedOverlay = { ...overlayData, visible: newVisible };
       this.overlayData.set(id, updatedOverlay);
-      
-      console.log(`[Content] Updated overlay ${id} visibility to ${newVisible}`);
-      
+
       // If this overlay becomes visible, hide others and show this one
       if (newVisible) {
         // Hide other visible overlays and notify background script
         const otherVisibleIds: string[] = [];
         this.overlayData.forEach((data, otherId) => {
           if (otherId !== id && data.visible) {
-            console.log(`[Content] Hiding other overlay ${otherId}`);
             this.overlayData.set(otherId, { ...data, visible: false });
             otherVisibleIds.push(otherId);
           }
         });
-        
-        console.log(`[Content] Sending UPDATE_OVERLAY messages for ${otherVisibleIds.length} other overlays:`, otherVisibleIds);
-        
+
         // Notify background script to update storage for hidden overlays
-        otherVisibleIds.forEach(otherId => {
-          console.log(`[Content] Sending UPDATE_OVERLAY message for overlay ${otherId}`);
-          chrome.runtime.sendMessage({
-            type: "UPDATE_OVERLAY",
-            payload: {
-              id: otherId,
-              updates: { visible: false },
+        otherVisibleIds.forEach((otherId) => {
+          chrome.runtime.sendMessage(
+            {
+              type: "UPDATE_OVERLAY",
+              payload: {
+                id: otherId,
+                updates: { visible: false },
+              },
             },
-          }, (response) => {
-            if (chrome.runtime.lastError) {
-              console.error(`[Content] UPDATE_OVERLAY message failed for ${otherId}:`, chrome.runtime.lastError.message);
-            } else {
-              console.log(`[Content] UPDATE_OVERLAY response for ${otherId}:`, response);
+            (response) => {
+              if (chrome.runtime.lastError) {
+                console.error(
+                  `[Content] UPDATE_OVERLAY message failed for ${otherId}:`,
+                  chrome.runtime.lastError.message
+                );
+              } else {
+              }
             }
-          });
+          );
         });
-        
+
         // Show this overlay
         const overlayElement = this.createOrUpdateOverlayElement(updatedOverlay);
         this.currentOverlayElement = overlayElement;
-        
+
         if (!document.body.contains(overlayElement)) {
           document.body.appendChild(overlayElement);
         }
-        
-        console.log(`[Content] Overlay ${id} is now visible on page`);
       } else {
         // Hide the overlay
         if (this.currentOverlayElement && document.body.contains(this.currentOverlayElement)) {
           this.currentOverlayElement.remove();
           this.currentOverlayElement = null;
         }
-        console.log(`[Content] Overlay ${id} is now hidden from page`);
       }
 
       return {
@@ -268,7 +256,7 @@ export class UIComparator {
       this.currentOverlayElement.remove();
       this.currentOverlayElement = null;
     }
-    
+
     // Clear all overlay data
     this.overlayData.clear();
 
@@ -290,7 +278,7 @@ export class UIComparator {
   private createOrUpdateOverlayElement(overlayData: UIOverlay): HTMLElement {
     // Check if the single overlay element already exists
     let wrapper = document.getElementById("fe-dev-tools-overlay") as HTMLElement;
-    
+
     if (!wrapper) {
       // Create the single overlay element
       wrapper = document.createElement("div");
@@ -309,13 +297,6 @@ export class UIComparator {
     img.src = overlayData.imageUrl;
     img.alt = "UI Comparison Overlay";
     img.draggable = false;
-
-    // Log image dimensions when loaded (for debugging)
-    img.onload = () => {
-      console.log(
-        `Image loaded: ${img.naturalWidth}x${img.naturalHeight}px, Container: ${overlayData.size.width}x${overlayData.size.height}px`
-      );
-    };
 
     container.appendChild(img);
 
@@ -364,14 +345,12 @@ export class UIComparator {
     this.createLayersList();
 
     document.body.appendChild(this.globalMenuContainer);
-    console.log("Global menu toolbar created and positioned");
   }
 
   private updateGlobalMenuVisibility(): void {
     if (this.globalMenuContainer) {
       const hasOverlays = this.overlayData.size > 0;
       this.globalMenuContainer.style.display = hasOverlays ? "block" : "none";
-      console.log(`Global menu visibility: ${hasOverlays ? "visible" : "hidden"}`);
     }
   }
 
@@ -424,7 +403,7 @@ export class UIComparator {
     // Transparency slider
     const opacityContainer = document.createElement("div");
     opacityContainer.className = "fe-dev-tools-opacity-container";
-    
+
     const opacityLabel = document.createElement("span");
     opacityLabel.innerHTML = `
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -433,7 +412,7 @@ export class UIComparator {
       </svg>
     `;
     opacityLabel.title = "透明度";
-    
+
     const opacitySlider = document.createElement("input");
     opacitySlider.type = "range";
     opacitySlider.min = "0";
@@ -465,13 +444,15 @@ export class UIComparator {
     const layerInfo = document.createElement("div");
     layerInfo.id = "fe-dev-tools-layer-info";
     layerInfo.className = "fe-dev-tools-layer-info";
-    
+
     this.globalMenuContainer.appendChild(layerInfo);
     this.updateLayerInfo();
   }
 
   private updateLayerInfo(): void {
-    const layerInfo = this.globalMenuContainer?.querySelector("#fe-dev-tools-layer-info") as HTMLElement;
+    const layerInfo = this.globalMenuContainer?.querySelector(
+      "#fe-dev-tools-layer-info"
+    ) as HTMLElement;
     if (!layerInfo) return;
 
     if (this.overlayData.size === 0) {
@@ -493,32 +474,109 @@ export class UIComparator {
     const visibleCount = Array.from(this.overlayData.values()).filter(
       (data) => data.visible
     ).length;
-    
+
+    // Create the main clickable layer info
     layerInfo.innerHTML = `
-      <span class="fe-dev-tools-layer-count">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right: 4px;">
-          <rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor" opacity="0.3"/>
-          <rect x="2" y="6" width="12" height="2" rx="1" fill="currentColor" opacity="0.6"/>
-          <rect x="2" y="9" width="12" height="2" rx="1" fill="currentColor" opacity="0.9"/>
-          <rect x="2" y="12" width="12" height="2" rx="1" fill="currentColor"/>
+      <div class="fe-dev-tools-layer-toggle" data-expanded="false">
+        <span class="fe-dev-tools-layer-count">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right: 4px;">
+            <rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor" opacity="0.3"/>
+            <rect x="2" y="6" width="12" height="2" rx="1" fill="currentColor" opacity="0.6"/>
+            <rect x="2" y="9" width="12" height="2" rx="1" fill="currentColor" opacity="0.9"/>
+            <rect x="2" y="12" width="12" height="2" rx="1" fill="currentColor"/>
+          </svg>
+          ${this.overlayData.size} 层 (${visibleCount} 可见)
+        </span>
+        <svg class="fe-dev-tools-expand-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" style="margin-left: 8px; transition: transform 0.2s;">
+          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        ${this.overlayData.size} 层 (${visibleCount} 可见)
-      </span>
+      </div>
+      <div class="fe-dev-tools-layer-list" style="display: none;"></div>
     `;
+
+    // Add click handler for toggle
+    const toggleElement = layerInfo.querySelector(".fe-dev-tools-layer-toggle") as HTMLElement;
+    const layerList = layerInfo.querySelector(".fe-dev-tools-layer-list") as HTMLElement;
+    const expandIcon = layerInfo.querySelector(".fe-dev-tools-expand-icon") as HTMLElement;
+
+    if (toggleElement && layerList && expandIcon) {
+      toggleElement.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const isExpanded = toggleElement.getAttribute("data-expanded") === "true";
+
+        if (isExpanded) {
+          // Collapse
+          toggleElement.setAttribute("data-expanded", "false");
+          layerList.style.display = "none";
+          expandIcon.style.transform = "rotate(0deg)";
+        } else {
+          // Expand
+          toggleElement.setAttribute("data-expanded", "true");
+          layerList.style.display = "block";
+          expandIcon.style.transform = "rotate(180deg)";
+          this.updateLayerList();
+        }
+      });
+    }
+  }
+
+  private updateLayerList(): void {
+    const layerList = this.globalMenuContainer?.querySelector(
+      ".fe-dev-tools-layer-list"
+    ) as HTMLElement;
+    if (!layerList) return;
+
+    // Clear existing list
+    layerList.innerHTML = "";
+
+    // Create list items for each overlay
+    Array.from(this.overlayData.entries()).forEach(([id, data]) => {
+      const listItem = document.createElement("div");
+      listItem.className = "fe-dev-tools-layer-item";
+      listItem.setAttribute("data-layer-id", id);
+
+      const shortId = id.slice(-4);
+      const isVisible = data.visible;
+
+      listItem.innerHTML = `
+        <div class="fe-dev-tools-layer-item-content">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" class="fe-dev-tools-layer-icon">
+            ${
+              isVisible
+                ? '<path d="M8 3C4.5 3 1.5 5.5 0 8C1.5 10.5 4.5 13 8 13C11.5 13 14.5 10.5 16 8C14.5 5.5 11.5 3 8 3ZM8 11C6.5 11 5 9.5 5 8C5 6.5 6.5 5 8 5C9.5 5 11 6.5 11 8C11 9.5 9.5 11 8 11ZM8 6.5C7.2 6.5 6.5 7.2 6.5 8C6.5 8.8 7.2 9.5 8 9.5C8.8 9.5 9.5 8.8 9.5 8C9.5 7.2 8.8 6.5 8 6.5Z" fill="currentColor"/>'
+                : '<path d="M9.9 3.1C9.3 3.0 8.7 3.0 8.0 3.0C4.5 3.0 1.5 5.5 0 8.0C0.8 9.5 1.9 10.8 3.2 11.7L9.9 3.1ZM16 8.0C15.2 6.5 14.1 5.2 12.8 4.3L6.1 12.9C6.7 13.0 7.3 13.0 8.0 13.0C11.5 13.0 14.5 10.5 16 8.0ZM5.7 9.7C5.3 9.0 5.0 8.0 5.0 8.0C5.0 6.5 6.5 5.0 8.0 5.0C8.3 5.0 8.6 5.1 8.9 5.2L7.8 6.5C7.6 6.4 7.3 6.3 7.0 6.5C6.5 7.0 6.5 7.8 7.0 8.3L5.7 9.7Z" fill="currentColor"/>'
+            }
+          </svg>
+          <span class="fe-dev-tools-layer-name">图层 ${shortId}</span>
+          <span class="fe-dev-tools-layer-status ${isVisible ? "visible" : "hidden"}">${
+        isVisible ? "显示中" : "隐藏"
+      }</span>
+        </div>
+      `;
+
+      // Add click handler for layer switching
+      listItem.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.toggleVisibility(id).then((result) => {
+          // Update the layer list after switching
+          this.updateLayerList();
+        });
+      });
+
+      layerList.appendChild(listItem);
+    });
   }
 
   private refreshLayerMenu(): void {
     this.updateLayerInfo();
   }
 
-
-
   private applyStylesAndProperties(wrapper: HTMLElement, overlayData: UIOverlay): void {
     const { position, size, opacity, visible, locked } = overlayData;
 
     // Store original position for scroll sync
-    wrapper.setAttribute('data-original-left', position.x.toString());
-    wrapper.setAttribute('data-original-top', position.y.toString());
+    wrapper.setAttribute("data-original-left", position.x.toString());
+    wrapper.setAttribute("data-original-top", position.y.toString());
 
     // Set wrapper styles
     wrapper.style.setProperty("position", "fixed", "important");
@@ -587,16 +645,17 @@ export class UIComparator {
     }
   }
 
-
   private freezeAllOverlays(): void {
     if (this.currentOverlayElement) {
       const isFrozen = this.currentOverlayElement.style.pointerEvents === "none";
-      
+
       if (isFrozen) {
         // Unfreeze
         this.currentOverlayElement.style.pointerEvents = "auto";
         this.currentOverlayElement.style.cursor = "move";
-        const container = this.currentOverlayElement.querySelector(".fe-dev-tools-overlay-container") as HTMLElement;
+        const container = this.currentOverlayElement.querySelector(
+          ".fe-dev-tools-overlay-container"
+        ) as HTMLElement;
         if (container) {
           container.style.border = "2px dashed rgba(59, 130, 246, 0.5)";
         }
@@ -604,14 +663,15 @@ export class UIComparator {
         // Freeze
         this.currentOverlayElement.style.pointerEvents = "none";
         this.currentOverlayElement.style.cursor = "default";
-        const container = this.currentOverlayElement.querySelector(".fe-dev-tools-overlay-container") as HTMLElement;
+        const container = this.currentOverlayElement.querySelector(
+          ".fe-dev-tools-overlay-container"
+        ) as HTMLElement;
         if (container) {
           container.style.border = "2px solid rgba(34, 197, 94, 0.8)";
         }
       }
     }
   }
-
 
   private startDrag(e: MouseEvent, overlayId: string): void {
     if (this.dragState.isDragging) return;
@@ -657,8 +717,8 @@ export class UIComparator {
             const newY = parseInt(element.style.top);
 
             // Update original position for scroll sync
-            element.setAttribute('data-original-left', newX.toString());
-            element.setAttribute('data-original-top', newY.toString());
+            element.setAttribute("data-original-left", newX.toString());
+            element.setAttribute("data-original-top", newY.toString());
 
             chrome.runtime.sendMessage({
               type: "UPDATE_OVERLAY_POSITION",
@@ -705,24 +765,32 @@ export class UIComparator {
 
   private initializeScrollSync(): void {
     let ticking = false;
-    
+
     const updateOverlayPositions = () => {
       const scrollY = window.scrollY;
       const scrollX = window.scrollX;
-      
+
       if (this.currentOverlayElement) {
         // Only sync scroll for non-locked overlays
         if (this.currentOverlayElement.style.pointerEvents !== "none") {
           // Get original position (stored in data attributes or calculate from current style)
-          const originalY = parseInt(this.currentOverlayElement.getAttribute('data-original-top') || this.currentOverlayElement.style.top) || 0;
-          const originalX = parseInt(this.currentOverlayElement.getAttribute('data-original-left') || this.currentOverlayElement.style.left) || 0;
-          
+          const originalY =
+            parseInt(
+              this.currentOverlayElement.getAttribute("data-original-top") ||
+                this.currentOverlayElement.style.top
+            ) || 0;
+          const originalX =
+            parseInt(
+              this.currentOverlayElement.getAttribute("data-original-left") ||
+                this.currentOverlayElement.style.left
+            ) || 0;
+
           // Apply scroll offset
           this.currentOverlayElement.style.top = `${originalY - scrollY}px`;
           this.currentOverlayElement.style.left = `${originalX - scrollX}px`;
         }
       }
-      
+
       ticking = false;
     };
 
@@ -734,10 +802,10 @@ export class UIComparator {
     };
 
     // Add scroll listener
-    window.addEventListener('scroll', onScroll, { passive: true });
-    
+    window.addEventListener("scroll", onScroll, { passive: true });
+
     // Also listen for resize to handle responsive layout changes
-    window.addEventListener('resize', onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
   }
 
   private initializeGlobalStyles(): void {
@@ -870,17 +938,101 @@ export class UIComparator {
           font-size: 13px !important;
           font-weight: 500 !important;
           background: rgba(120, 120, 128, 0.16) !important;
-          padding: 8px 12px !important;
           border-radius: 12px !important;
-          white-space: nowrap !important;
           backdrop-filter: blur(20px) !important;
           letter-spacing: -0.08px !important;
+          position: relative !important;
+        }
+        
+        .fe-dev-tools-layer-toggle {
+          padding: 8px 12px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          cursor: pointer !important;
+          transition: all 0.2s ease !important;
+          white-space: nowrap !important;
+        }
+        
+        .fe-dev-tools-layer-toggle:hover {
+          background: rgba(120, 120, 128, 0.24) !important;
         }
         
         .fe-dev-tools-layer-count {
           font-weight: 500 !important;
           display: flex !important;
           align-items: center !important;
+        }
+        
+        .fe-dev-tools-expand-icon {
+          color: rgba(255, 255, 255, 0.7) !important;
+          transition: transform 0.2s ease !important;
+        }
+        
+        .fe-dev-tools-layer-list {
+          position: absolute !important;
+          bottom: 100% !important;
+          left: 0 !important;
+          right: 0 !important;
+          background: rgba(28, 28, 30, 0.85) !important;
+          backdrop-filter: blur(40px) saturate(180%) !important;
+          border-radius: 12px !important;
+          margin-bottom: 8px !important;
+          border: 0.5px solid rgba(255, 255, 255, 0.1) !important;
+          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+          max-height: 240px !important;
+          overflow-y: auto !important;
+          z-index: 1000000 !important;
+        }
+        
+        .fe-dev-tools-layer-item {
+          padding: 10px 12px !important;
+          cursor: pointer !important;
+          transition: background-color 0.2s ease !important;
+          border-bottom: 0.5px solid rgba(255, 255, 255, 0.05) !important;
+        }
+        
+        .fe-dev-tools-layer-item:last-child {
+          border-bottom: none !important;
+        }
+        
+        .fe-dev-tools-layer-item:hover {
+          background: rgba(120, 120, 128, 0.2) !important;
+        }
+        
+        .fe-dev-tools-layer-item-content {
+          display: flex !important;
+          align-items: center !important;
+          gap: 8px !important;
+        }
+        
+        .fe-dev-tools-layer-icon {
+          color: rgba(255, 255, 255, 0.8) !important;
+          flex-shrink: 0 !important;
+        }
+        
+        .fe-dev-tools-layer-name {
+          flex: 1 !important;
+          font-size: 13px !important;
+          font-weight: 500 !important;
+          color: rgba(255, 255, 255, 0.9) !important;
+        }
+        
+        .fe-dev-tools-layer-status {
+          font-size: 11px !important;
+          padding: 2px 6px !important;
+          border-radius: 6px !important;
+          font-weight: 500 !important;
+        }
+        
+        .fe-dev-tools-layer-status.visible {
+          background: rgba(34, 197, 94, 0.2) !important;
+          color: rgba(34, 197, 94, 1) !important;
+        }
+        
+        .fe-dev-tools-layer-status.hidden {
+          background: rgba(120, 120, 128, 0.2) !important;
+          color: rgba(120, 120, 128, 1) !important;
         }
         
       `;

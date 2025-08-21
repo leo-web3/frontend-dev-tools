@@ -1,11 +1,11 @@
-import { Message, ExtensionResponse, UIOverlay } from '@/shared/types';
-import { MESSAGE_TYPES } from '@/shared/constants';
-import { UIComparator } from './uiComparator';
+import { MESSAGE_TYPES } from "@/shared/constants";
+import { ExtensionResponse, Message, UIOverlay } from "@/shared/types";
+import { UIComparator } from "./uiComparator";
 
 class ContentScript {
   private static instance: ContentScript;
   private uiComparator: UIComparator;
-  
+
   static getInstance(): ContentScript {
     if (!ContentScript.instance) {
       ContentScript.instance = new ContentScript();
@@ -20,19 +20,15 @@ class ContentScript {
   }
 
   private initializeMessageListeners(): void {
-    chrome.runtime.onMessage.addListener(
-      (message: Message, _sender, sendResponse) => {
-        this.handleMessage(message).then(sendResponse);
-        return true; // Keep the message channel open for async response
-      }
-    );
+    chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
+      this.handleMessage(message).then(sendResponse);
+      return true; // Keep the message channel open for async response
+    });
   }
 
   private async handleMessage(message: Message): Promise<ExtensionResponse> {
     try {
       const { type, payload } = message;
-
-      console.log('Content script received message:', type, payload);
 
       switch (type) {
         case MESSAGE_TYPES.CREATE_OVERLAY:
@@ -65,32 +61,31 @@ class ContentScript {
           // Respond to content script availability check
           return {
             success: true,
-            data: 'Content script is available',
+            data: "Content script is available",
           };
 
         default:
           throw new Error(`Unknown message type: ${type}`);
       }
     } catch (error) {
-      console.error('Error handling content script message:', error);
+      console.error("Error handling content script message:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
 
-
   private initializePageObserver(): void {
     // Listen for page navigation changes
-    if ('navigation' in window) {
+    if ("navigation" in window) {
       // Use Navigation API if available (modern browsers)
-      (window as any).navigation.addEventListener('navigate', () => {
+      (window as any).navigation.addEventListener("navigate", () => {
         this.onPageChange();
       });
     } else {
       // Fallback: listen for popstate events
-      window.addEventListener('popstate', () => {
+      window.addEventListener("popstate", () => {
         this.onPageChange();
       });
     }
@@ -106,7 +101,7 @@ class ContentScript {
           childList: true,
           subtree: true,
           attributes: true,
-          attributeFilter: ['style', 'class']
+          attributeFilter: ["style", "class"],
         });
       } else {
         // Wait for document.body to be available
@@ -130,32 +125,24 @@ class ContentScript {
       // Request background script to load overlays for current URL
       const response = await chrome.runtime.sendMessage({
         type: MESSAGE_TYPES.LOAD_CONFIG,
-        payload: { url: window.location.href }
+        payload: { url: window.location.href },
       });
 
-      console.log('Load overlays response:', response);
-
       if (response.success && response.data?.overlays && response.data.overlays.length > 0) {
-        console.log('Loading overlays for current page:', response.data.overlays);
         for (const overlay of response.data.overlays) {
           await this.uiComparator.createOverlay(overlay);
         }
       } else {
-        console.log('No overlays to load for current page');
         // Ensure all overlays are cleared if no data exists
         this.uiComparator.clearAllOverlays();
       }
     } catch (error) {
-      console.error('Failed to load overlays for current page:', error);
+      console.error("Failed to load overlays for current page:", error);
     }
   }
 
-
   // Initialize on page load
   initialize(): void {
-    console.log('[FE Dev Tools] Content script initialized on URL:', window.location.href);
-    console.log('[FE Dev Tools] Document ready state:', document.readyState);
-    
     // Wait for document.body to be available before showing indicator
     const showIndicatorWhenReady = () => {
       if (!document.body) {
@@ -164,9 +151,9 @@ class ContentScript {
       }
 
       // Add a visible indicator that content script is loaded
-      const indicator = document.createElement('div');
-      indicator.id = 'fe-dev-tools-indicator';
-      indicator.textContent = 'FE Dev Tools Loaded';
+      const indicator = document.createElement("div");
+      indicator.id = "fe-dev-tools-indicator";
+      indicator.textContent = "FE Dev Tools Loaded";
       indicator.style.cssText = `
         position: fixed !important;
         top: 10px !important;
@@ -179,7 +166,7 @@ class ContentScript {
         border-radius: 4px !important;
       `;
       document.body.appendChild(indicator);
-      
+
       // Remove indicator after 3 seconds
       setTimeout(() => {
         indicator?.remove();
@@ -187,12 +174,12 @@ class ContentScript {
     };
 
     showIndicatorWhenReady();
-    
+
     // Load overlays for current page if any exist
-    if (document.readyState === 'complete') {
+    if (document.readyState === "complete") {
       this.loadOverlaysForCurrentPage();
     } else {
-      window.addEventListener('load', () => {
+      window.addEventListener("load", () => {
         this.loadOverlaysForCurrentPage();
       });
     }
@@ -209,7 +196,7 @@ const contentScript = ContentScript.getInstance();
 contentScript.initialize();
 
 // Listen for page unload to cleanup
-window.addEventListener('beforeunload', () => {
+window.addEventListener("beforeunload", () => {
   contentScript.cleanup();
 });
 
