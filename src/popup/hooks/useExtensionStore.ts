@@ -269,6 +269,35 @@ export const useExtensionStore = create<ExtensionState>((set, get) => ({
       // Load all initial data
       await get().loadGlobalSettings();
       
+      // Set up message listener for overlay state changes
+      chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        if (message.type === 'OVERLAY_STATE_CHANGED') {
+          const { url, overlayId, updates } = message.payload;
+          
+          // Get current tab URL to see if this update affects current overlays
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            const currentTab = tabs[0];
+            if (currentTab?.url === url) {
+              // Update the current overlays state
+              const currentOverlays = get().currentOverlays;
+              const updatedOverlays = currentOverlays.map(overlay =>
+                overlay.id === overlayId ? { ...overlay, ...updates } : overlay
+              );
+              
+              console.log('Popup: Received overlay state change, updating current overlays:', {
+                overlayId,
+                updates,
+                updatedOverlays
+              });
+              
+              set({ currentOverlays: updatedOverlays });
+            }
+          });
+        }
+        
+        return false; // Don't send response
+      });
+      
       set({ loading: false });
     } catch (error) {
       set({ 

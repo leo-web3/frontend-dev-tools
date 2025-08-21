@@ -85,14 +85,11 @@ export const UIComparatorPanel: React.FC = () => {
 
       const { width, height } = await getImageDimensions(imageUrl);
 
-      // Clear all existing overlays before creating new one
-      if (currentOverlays.length > 0) {
-        console.log("Clearing existing overlays before upload:", currentOverlays.length);
-        for (const existingOverlay of currentOverlays) {
-          await removeOverlay(existingOverlay.id);
+      // Set all existing overlays to hidden
+      for (const existingOverlay of currentOverlays) {
+        if (existingOverlay.visible) {
+          await updateOverlay(existingOverlay.id, { visible: false });
         }
-        // Wait a moment to ensure clearing is complete
-        await new Promise((resolve) => setTimeout(resolve, 200));
       }
 
       const overlay: UIOverlay = {
@@ -110,11 +107,11 @@ export const UIComparatorPanel: React.FC = () => {
 
       console.log("Creating new overlay after clearing:", overlay);
       await createOverlay(overlay);
-      showToast(`${t('ui_comparator.upload.success')} ${width}px`, "success");
+      showToast(`${t("ui_comparator.upload.success")} ${width}px`, "success");
       return false; // Prevent default upload behavior
     } catch (error) {
       console.error("Upload error:", error);
-      showToast(t('ui_comparator.upload.error'), "error");
+      showToast(t("ui_comparator.upload.error"), "error");
       return false;
     }
   };
@@ -130,36 +127,39 @@ export const UIComparatorPanel: React.FC = () => {
     try {
       await updateOverlay(overlayId, { opacity: opacity / 100 });
     } catch (error) {
-      showToast(t('toast.operation_failed'), "error");
+      showToast(t("toast.operation_failed"), "error");
     }
   };
 
   const handleToggleVisibility = async (overlayId: string, visible: boolean) => {
     try {
       await updateOverlay(overlayId, { visible: !visible });
-      showToast(!visible ? t('toast.layer_toggled_visible') : t('toast.layer_toggled_hidden'), "success");
+      showToast(
+        !visible ? t("toast.layer_toggled_visible") : t("toast.layer_toggled_hidden"),
+        "success"
+      );
     } catch (error) {
-      showToast(t('toast.operation_failed'), "error");
+      showToast(t("toast.operation_failed"), "error");
     }
   };
 
   const handleToggleLock = async (overlayId: string, locked: boolean) => {
     try {
       await updateOverlay(overlayId, { locked: !locked });
-      showToast(!locked ? t('toast.layer_locked') : t('toast.layer_unlocked'), "success");
+      showToast(!locked ? t("toast.layer_locked") : t("toast.layer_unlocked"), "success");
     } catch (error) {
-      showToast(t('toast.operation_failed'), "error");
+      showToast(t("toast.operation_failed"), "error");
     }
   };
 
   const handleRemoveOverlay = async (overlayId: string) => {
     try {
       await removeOverlay(overlayId);
-      showToast(t('toast.layer_deleted'), "success");
+      showToast(t("toast.layer_deleted"), "success");
       setDeleteDialogOpen(false);
       setOverlayToDelete("");
     } catch (error) {
-      showToast(t('toast.operation_failed'), "error");
+      showToast(t("toast.operation_failed"), "error");
     }
   };
 
@@ -193,30 +193,15 @@ export const UIComparatorPanel: React.FC = () => {
     }
   };
 
-  const handleToggleAllOverlays = async () => {
-    try {
-      const visibleCount = currentOverlays.filter((o) => o.visible).length;
-      const shouldHide = visibleCount > 0;
-
-      for (const overlay of currentOverlays) {
-        await updateOverlay(overlay.id, { visible: !shouldHide });
-      }
-
-      showToast(shouldHide ? t('toast.all_layers_hidden') : t('toast.all_layers_visible'), "success");
-    } catch (error) {
-      showToast(t('toast.operation_failed'), "error");
-    }
-  };
-
   const handleClearAllOverlays = async () => {
     try {
       for (const overlay of currentOverlays) {
         await removeOverlay(overlay.id);
       }
-      showToast(t('toast.layers_cleared'), "success");
+      showToast(t("toast.layers_cleared"), "success");
       setClearAllDialogOpen(false);
     } catch (error) {
-      showToast(t('toast.operation_failed'), "error");
+      showToast(t("toast.operation_failed"), "error");
     }
   };
 
@@ -234,15 +219,17 @@ export const UIComparatorPanel: React.FC = () => {
       {toast && (
         <div
           className={`fixed top-6 right-6 z-50 p-4 rounded-2xl shadow-2xl backdrop-blur-xl border ${
-            toast.type === "success" 
-              ? "bg-green-500/90 text-white border-green-400/50" 
+            toast.type === "success"
+              ? "bg-green-500/90 text-white border-green-400/50"
               : "bg-red-500/90 text-white border-red-400/50"
           } transition-all duration-300 transform translate-x-0`}
         >
           <div className="flex items-center gap-3">
-            <div className={`w-2 h-2 rounded-full ${
-              toast.type === "success" ? "bg-white/80" : "bg-white/80"
-            }`}></div>
+            <div
+              className={`w-2 h-2 rounded-full ${
+                toast.type === "success" ? "bg-white/80" : "bg-white/80"
+              }`}
+            ></div>
             <span className="font-medium">{toast.message}</span>
           </div>
         </div>
@@ -274,7 +261,9 @@ export const UIComparatorPanel: React.FC = () => {
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
               <Upload className="h-8 w-8 text-primary" />
             </div>
-            <p className="text-lg font-semibold mb-2 text-foreground">{t('ui_comparator.upload.title')}</p>
+            <p className="text-lg font-semibold mb-2 text-foreground">
+              {t("ui_comparator.upload.title")}
+            </p>
             <p className="text-sm text-muted-foreground leading-relaxed">
               支持格式：{UI_CONSTANTS.SUPPORTED_IMAGE_FORMATS.join("、")}
             </p>
@@ -289,7 +278,9 @@ export const UIComparatorPanel: React.FC = () => {
             <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
               <Monitor className="w-4 h-4 text-blue-600" />
             </div>
-            <h4 className="font-semibold text-foreground">{t('ui_comparator.browser_size.title')}</h4>
+            <h4 className="font-semibold text-foreground">
+              {t("ui_comparator.browser_size.title")}
+            </h4>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {UI_CONSTANTS.COMMON_SCREEN_SIZES.map(({ name, width, height }) => (
@@ -323,30 +314,21 @@ export const UIComparatorPanel: React.FC = () => {
                   <div className="h-0.5 bg-green-600 rounded-full"></div>
                 </div>
               </div>
-              <h4 className="font-semibold text-foreground">{t('ui_comparator.layers.title')}</h4>
+              <h4 className="font-semibold text-foreground">{t("ui_comparator.layers.title")}</h4>
               <div className="px-2.5 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
                 {currentOverlays.length}
               </div>
             </div>
             {currentOverlays.length > 0 && (
               <div className="flex gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={handleToggleAllOverlays}
-                  className="rounded-xl border border-border/50 hover:border-border hover:bg-muted/50"
-                >
-                  <Eye className="w-4 h-4 mr-2" />
-                  {t('ui_comparator.layers.toggle_all')}
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setClearAllDialogOpen(true)}
                   className="rounded-xl border border-red-200/50 hover:border-red-300 hover:bg-red-50/50 text-red-600"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
-                  {t('ui_comparator.layers.clear_all')}
+                  {t("ui_comparator.layers.clear_all")}
                 </Button>
               </div>
             )}
@@ -383,11 +365,13 @@ export const UIComparatorPanel: React.FC = () => {
             <div className="w-8 h-8 rounded-xl bg-purple-500/10 flex items-center justify-center">
               <div className="w-4 h-4 border-2 border-purple-600 rounded opacity-80"></div>
             </div>
-            <h4 className="font-semibold text-foreground">{t('ui_comparator.shortcuts.title')}</h4>
+            <h4 className="font-semibold text-foreground">{t("ui_comparator.shortcuts.title")}</h4>
           </div>
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/30">
-              <span className="text-sm text-muted-foreground">{t('ui_comparator.shortcuts.toggle_all')}</span>
+              <span className="text-sm text-muted-foreground">
+                {t("ui_comparator.shortcuts.toggle_all")}
+              </span>
               <kbd className="px-3 py-1.5 bg-background border border-border rounded-lg text-xs font-mono shadow-sm">
                 ⌘⇧U
               </kbd>
@@ -415,9 +399,11 @@ export const UIComparatorPanel: React.FC = () => {
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-500/10 flex items-center justify-center">
               <Trash2 className="w-8 h-8 text-red-500" />
             </div>
-            <DialogTitle className="text-xl font-semibold text-foreground">{t('dialog.delete.title')}</DialogTitle>
+            <DialogTitle className="text-xl font-semibold text-foreground">
+              {t("dialog.delete.title")}
+            </DialogTitle>
             <DialogDescription className="text-muted-foreground mt-3 leading-relaxed">
-              {t('dialog.delete.description')}
+              {t("dialog.delete.description")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="pt-2">
@@ -427,14 +413,14 @@ export const UIComparatorPanel: React.FC = () => {
                 onClick={() => handleRemoveOverlay(overlayToDelete)}
                 className="w-full rounded-2xl h-12 font-medium text-base"
               >
-                {t('dialog.delete.confirm')}
+                {t("dialog.delete.confirm")}
               </Button>
               <Button
                 variant="ghost"
                 onClick={() => setDeleteDialogOpen(false)}
                 className="w-full rounded-2xl h-12 font-medium text-base hover:bg-muted/50"
               >
-                {t('common.cancel')}
+                {t("common.cancel")}
               </Button>
             </div>
           </DialogFooter>
@@ -453,9 +439,11 @@ export const UIComparatorPanel: React.FC = () => {
                 <div className="h-1 bg-orange-500 rounded-full"></div>
               </div>
             </div>
-            <DialogTitle className="text-xl font-semibold text-foreground">{t('dialog.clear_all.title')}</DialogTitle>
+            <DialogTitle className="text-xl font-semibold text-foreground">
+              {t("dialog.clear_all.title")}
+            </DialogTitle>
             <DialogDescription className="text-muted-foreground mt-3 leading-relaxed">
-              {t('dialog.clear_all.description')}
+              {t("dialog.clear_all.description")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="pt-2">
@@ -465,14 +453,14 @@ export const UIComparatorPanel: React.FC = () => {
                 onClick={handleClearAllOverlays}
                 className="w-full rounded-2xl h-12 font-medium text-base"
               >
-                {t('dialog.clear_all.confirm')}
+                {t("dialog.clear_all.confirm")}
               </Button>
               <Button
                 variant="ghost"
                 onClick={() => setClearAllDialogOpen(false)}
                 className="w-full rounded-2xl h-12 font-medium text-base hover:bg-muted/50"
               >
-                {t('common.cancel')}
+                {t("common.cancel")}
               </Button>
             </div>
           </DialogFooter>
@@ -498,6 +486,7 @@ const OverlayItem: React.FC<OverlayItemProps> = ({
   onToggleLock,
   onRemove,
 }) => {
+  const { t } = useI18n();
   const [localOpacity, setLocalOpacity] = useState(Math.round(overlay.opacity * 100));
 
   useEffect(() => {
@@ -527,7 +516,9 @@ const OverlayItem: React.FC<OverlayItemProps> = ({
           {/* Overlay info and controls */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-2">
-              <div className="font-medium text-sm">图层 {overlay.id.slice(-4)}</div>
+              <div className="flex items-center gap-2">
+                <div className="font-medium text-sm">图层 {overlay.id.slice(-4)}</div>
+              </div>
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"

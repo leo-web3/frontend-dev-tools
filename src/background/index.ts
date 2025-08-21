@@ -44,10 +44,12 @@ class BackgroundService {
           return await this.adjustBrowserSize(payload.width, payload.height);
 
         case MESSAGE_TYPES.CREATE_OVERLAY:
-        case MESSAGE_TYPES.UPDATE_OVERLAY:
         case MESSAGE_TYPES.REMOVE_OVERLAY:
         case MESSAGE_TYPES.TOGGLE_OVERLAY_VISIBILITY:
           return await this.forwardToContentScript(message, targetTabId!);
+          
+        case MESSAGE_TYPES.UPDATE_OVERLAY:
+          return await this.handleUpdateOverlay(message, targetTabId!);
 
         case MESSAGE_TYPES.SAVE_CONFIG:
         case MESSAGE_TYPES.LOAD_CONFIG:
@@ -375,6 +377,77 @@ class BackgroundService {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to inject content script',
+      };
+    }
+  }
+
+  private async handleUpdateOverlay(
+    message: Message, 
+    tabId: number
+  ): Promise<ExtensionResponse> {
+    try {
+      // Forward to content script first
+      const contentResponse = await this.forwardToContentScript(message, tabId);
+      
+      // If content script update succeeded, update stored config
+      if (contentResponse.success) {
+        const { payload } = message;
+        const { id, updates } = payload;
+        
+        // Get current tab URL to update storage
+        const tab = await new Promise<chrome.tabs.Tab>((resolve) => {
+          chrome.tabs.get(tabId, (tab) => {
+            if (chrome.runtime.lastError) {
+              resolve(null as any);
+            } else {
+              resolve(tab);
+            }
+          });
+        });
+        
+        if (tab?.url) {
+          // Load current config
+          const result = await chrome.storage.local.get(['uiComparisons']);
+          const uiComparisons = result.uiComparisons || {};
+          const config = uiComparisons[tab.url];
+          
+          if (config?.overlays) {
+            // Update the specific overlay
+            const updatedOverlays = config.overlays.map((overlay: any) =>
+              overlay.id === id ? { ...overlay, ...updates } : overlay
+            );
+            
+            // Save updated config
+            config.overlays = updatedOverlays;
+            uiComparisons[tab.url] = config;
+            await chrome.storage.local.set({ uiComparisons });
+            
+            console.log('Background: Updated overlay in storage:', { id, updates, url: tab.url });
+            
+            // Notify popup of state change if it exists
+            try {
+              chrome.runtime.sendMessage({
+                type: MESSAGE_TYPES.OVERLAY_STATE_CHANGED,
+                payload: {
+                  url: tab.url,
+                  overlayId: id,
+                  updates
+                }
+              });
+            } catch (error) {
+              // Popup might not be open, ignore error
+              console.log('Could not notify popup (probably closed):', error);
+            }
+          }
+        }
+      }
+      
+      return contentResponse;
+    } catch (error) {
+      console.error('Error handling UPDATE_OVERLAY:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to update overlay',
       };
     }
   }

@@ -1,7 +1,8 @@
 import { ExtensionResponse, UIOverlay } from "@/shared/types";
 
 export class UIComparator {
-  private overlays: Map<string, HTMLElement> = new Map();
+  private overlayData: Map<string, UIOverlay> = new Map(); // Store overlay data instead of DOM elements
+  private currentOverlayElement: HTMLElement | null = null; // Single overlay element
   private globalMenuContainer: HTMLElement | null = null;
   private dragState: {
     isDragging: boolean;
@@ -38,16 +39,33 @@ export class UIComparator {
                 this.createGlobalMenuContainer();
               }
 
-              const overlayWrapper = this.createOverlayElement(overlayData);
-              this.overlays.set(overlayData.id, overlayWrapper);
-              document.body.appendChild(overlayWrapper);
+              // Store overlay data
+              this.overlayData.set(overlayData.id, overlayData);
+              
+              // If this overlay is visible, hide other overlays and show this one
+              if (overlayData.visible) {
+                // Hide other visible overlays
+                this.overlayData.forEach((data, id) => {
+                  if (id !== overlayData.id && data.visible) {
+                    this.overlayData.set(id, { ...data, visible: false });
+                  }
+                });
+                
+                const overlayWrapper = this.createOrUpdateOverlayElement(overlayData);
+                this.currentOverlayElement = overlayWrapper;
+                
+                // Add to DOM if not already there
+                if (!document.body.contains(overlayWrapper)) {
+                  document.body.appendChild(overlayWrapper);
+                }
+              }
 
               // Update menu visibility and refresh layer menu
               this.updateGlobalMenuVisibility();
               this.refreshLayerMenu();
 
-              console.log("Overlay created and added to DOM:", overlayData.id);
-              console.log("Total overlays:", this.overlays.size);
+              console.log("Overlay created:", overlayData.id, "Visible:", overlayData.visible);
+              console.log("Total overlays:", this.overlayData.size);
               resolve();
             } else {
               setTimeout(checkBodyReady, 10);
@@ -74,15 +92,46 @@ export class UIComparator {
 
   async updateOverlay(id: string, updates: Partial<UIOverlay>): Promise<ExtensionResponse> {
     try {
-      const overlayElement = this.overlays.get(id);
-      if (!overlayElement) {
+      const overlayData = this.overlayData.get(id);
+      if (!overlayData) {
         return {
           success: false,
           error: "Overlay not found",
         };
       }
 
-      this.applyUpdatesToElement(overlayElement, updates);
+      // Update overlay data
+      const updatedOverlay = { ...overlayData, ...updates };
+      this.overlayData.set(id, updatedOverlay);
+      
+      // Handle visibility changes
+      if (updates.hasOwnProperty('visible')) {
+        if (updates.visible) {
+          // Show this overlay: hide other visible overlays first
+          this.overlayData.forEach((data, otherId) => {
+            if (otherId !== id && data.visible) {
+              this.overlayData.set(otherId, { ...data, visible: false });
+            }
+          });
+          
+          // Show this overlay
+          const overlayElement = this.createOrUpdateOverlayElement(updatedOverlay);
+          this.currentOverlayElement = overlayElement;
+          
+          if (!document.body.contains(overlayElement)) {
+            document.body.appendChild(overlayElement);
+          }
+        } else {
+          // Hide: remove the overlay if it's currently showing
+          if (this.currentOverlayElement && document.body.contains(this.currentOverlayElement)) {
+            this.currentOverlayElement.remove();
+            this.currentOverlayElement = null;
+          }
+        }
+      } else if (this.currentOverlayElement && overlayData.visible) {
+        // Update the current overlay if it's the visible one
+        this.applyUpdatesToElement(this.currentOverlayElement, updates);
+      }
 
       return {
         success: true,
@@ -99,11 +148,16 @@ export class UIComparator {
 
   async removeOverlay(id: string): Promise<ExtensionResponse> {
     try {
-      const overlayElement = this.overlays.get(id);
-      if (overlayElement) {
-        // Remove overlay wrapper
-        overlayElement.remove();
-        this.overlays.delete(id);
+      const overlayData = this.overlayData.get(id);
+      if (overlayData) {
+        // If this is the visible overlay, remove it from DOM
+        if (overlayData.visible && this.currentOverlayElement) {
+          this.currentOverlayElement.remove();
+          this.currentOverlayElement = null;
+        }
+        
+        // Remove from data storage
+        this.overlayData.delete(id);
       }
 
       // Update menu visibility and refresh layer info
@@ -125,20 +179,59 @@ export class UIComparator {
 
   async toggleVisibility(id: string): Promise<ExtensionResponse> {
     try {
-      const overlayElement = this.overlays.get(id);
-      if (!overlayElement) {
+      const overlayData = this.overlayData.get(id);
+      if (!overlayData) {
         return {
           success: false,
           error: "Overlay not found",
         };
       }
 
-      const isVisible = overlayElement.style.display !== "none";
-      overlayElement.style.display = isVisible ? "none" : "block";
+      // Update the overlay data
+      const newVisible = !overlayData.visible;
+      const updatedOverlay = { ...overlayData, visible: newVisible };
+      this.overlayData.set(id, updatedOverlay);
+      
+      // If this overlay becomes visible, hide others and show this one
+      if (newVisible) {
+        // Hide other visible overlays and notify background script
+        const otherVisibleIds: string[] = [];
+        this.overlayData.forEach((data, otherId) => {
+          if (otherId !== id && data.visible) {
+            this.overlayData.set(otherId, { ...data, visible: false });
+            otherVisibleIds.push(otherId);
+          }
+        });
+        
+        // Notify background script to update storage for hidden overlays
+        otherVisibleIds.forEach(otherId => {
+          chrome.runtime.sendMessage({
+            type: "UPDATE_OVERLAY",
+            payload: {
+              id: otherId,
+              updates: { visible: false },
+            },
+          });
+        });
+        
+        // Show this overlay
+        const overlayElement = this.createOrUpdateOverlayElement(updatedOverlay);
+        this.currentOverlayElement = overlayElement;
+        
+        if (!document.body.contains(overlayElement)) {
+          document.body.appendChild(overlayElement);
+        }
+      } else {
+        // Hide the overlay
+        if (this.currentOverlayElement && document.body.contains(this.currentOverlayElement)) {
+          this.currentOverlayElement.remove();
+          this.currentOverlayElement = null;
+        }
+      }
 
       return {
         success: true,
-        data: `Overlay ${id} ${isVisible ? "hidden" : "shown"}`,
+        data: `Overlay ${id} ${newVisible ? "shown" : "hidden"}`,
       };
     } catch (error) {
       console.error("Failed to toggle overlay visibility:", error);
@@ -150,11 +243,14 @@ export class UIComparator {
   }
 
   clearAllOverlays(): void {
-    this.overlays.forEach((overlay) => {
-      // Remove overlay wrapper
-      overlay.remove();
-    });
-    this.overlays.clear();
+    // Remove the overlay element from DOM
+    if (this.currentOverlayElement) {
+      this.currentOverlayElement.remove();
+      this.currentOverlayElement = null;
+    }
+    
+    // Clear all overlay data
+    this.overlayData.clear();
 
     // Hide global menu and refresh layer info
     this.updateGlobalMenuVisibility();
@@ -162,26 +258,27 @@ export class UIComparator {
   }
 
   adjustOverlaysToPageChanges(): void {
-    // Re-adjust overlays if the page layout changes
-    this.overlays.forEach((overlay, id) => {
+    // Re-adjust overlay if the page layout changes
+    if (this.currentOverlayElement && document.body) {
       // Ensure overlay is still properly positioned
-      if (document.body && overlay.parentNode !== document.body) {
-        document.body.appendChild(overlay);
+      if (this.currentOverlayElement.parentNode !== document.body) {
+        document.body.appendChild(this.currentOverlayElement);
       }
-    });
+    }
   }
 
-  private createOverlayElement(overlayData: UIOverlay): HTMLElement {
-    // Check if overlay already exists
-    const existingOverlay = document.getElementById(`fe-dev-tools-overlay-${overlayData.id}`);
-    if (existingOverlay) {
-      console.warn(`Overlay with ID ${overlayData.id} already exists, removing existing one`);
-      existingOverlay.remove();
+  private createOrUpdateOverlayElement(overlayData: UIOverlay): HTMLElement {
+    // Check if the single overlay element already exists
+    let wrapper = document.getElementById("fe-dev-tools-overlay") as HTMLElement;
+    
+    if (!wrapper) {
+      // Create the single overlay element
+      wrapper = document.createElement("div");
+      wrapper.id = "fe-dev-tools-overlay";
+    } else {
+      // Clear existing content
+      wrapper.innerHTML = "";
     }
-
-    // Create wrapper to hold overlay
-    const wrapper = document.createElement("div");
-    wrapper.id = `fe-dev-tools-overlay-${overlayData.id}`;
 
     // Create overlay container for image
     const container = document.createElement("div");
@@ -252,7 +349,7 @@ export class UIComparator {
 
   private updateGlobalMenuVisibility(): void {
     if (this.globalMenuContainer) {
-      const hasOverlays = this.overlays.size > 0;
+      const hasOverlays = this.overlayData.size > 0;
       this.globalMenuContainer.style.display = hasOverlays ? "block" : "none";
       console.log(`Global menu visibility: ${hasOverlays ? "visible" : "hidden"}`);
     }
@@ -327,9 +424,9 @@ export class UIComparator {
       e.stopPropagation();
       const value = (e.target as HTMLInputElement).value;
       const opacity = parseInt(value) / 100;
-      this.overlays.forEach((overlay) => {
-        overlay.style.opacity = opacity.toString();
-      });
+      if (this.currentOverlayElement) {
+        this.currentOverlayElement.style.opacity = opacity.toString();
+      }
     };
 
     opacityContainer.appendChild(opacityLabel);
@@ -357,7 +454,7 @@ export class UIComparator {
     const layerInfo = this.globalMenuContainer?.querySelector("#fe-dev-tools-layer-info") as HTMLElement;
     if (!layerInfo) return;
 
-    if (this.overlays.size === 0) {
+    if (this.overlayData.size === 0) {
       layerInfo.innerHTML = `
         <span class="fe-dev-tools-layer-count">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right: 4px;">
@@ -372,8 +469,9 @@ export class UIComparator {
       return;
     }
 
-    const visibleCount = Array.from(this.overlays.values()).filter(
-      (overlay) => overlay.style.display !== "none"
+    // Count visible overlays
+    const visibleCount = Array.from(this.overlayData.values()).filter(
+      (data) => data.visible
     ).length;
     
     layerInfo.innerHTML = `
@@ -384,7 +482,7 @@ export class UIComparator {
           <rect x="2" y="9" width="12" height="2" rx="1" fill="currentColor" opacity="0.9"/>
           <rect x="2" y="12" width="12" height="2" rx="1" fill="currentColor"/>
         </svg>
-        ${this.overlays.size} 层 (${visibleCount} 可见)
+        ${this.overlayData.size} 层 (${visibleCount} 可见)
       </span>
     `;
   }
@@ -471,34 +569,35 @@ export class UIComparator {
 
 
   private freezeAllOverlays(): void {
-    this.overlays.forEach((overlayElement) => {
-      const isFrozen = overlayElement.style.pointerEvents === "none";
+    if (this.currentOverlayElement) {
+      const isFrozen = this.currentOverlayElement.style.pointerEvents === "none";
       
       if (isFrozen) {
         // Unfreeze
-        overlayElement.style.pointerEvents = "auto";
-        overlayElement.style.cursor = "move";
-        const container = overlayElement.querySelector(".fe-dev-tools-overlay-container") as HTMLElement;
+        this.currentOverlayElement.style.pointerEvents = "auto";
+        this.currentOverlayElement.style.cursor = "move";
+        const container = this.currentOverlayElement.querySelector(".fe-dev-tools-overlay-container") as HTMLElement;
         if (container) {
           container.style.border = "2px dashed rgba(59, 130, 246, 0.5)";
         }
       } else {
         // Freeze
-        overlayElement.style.pointerEvents = "none";
-        overlayElement.style.cursor = "default";
-        const container = overlayElement.querySelector(".fe-dev-tools-overlay-container") as HTMLElement;
+        this.currentOverlayElement.style.pointerEvents = "none";
+        this.currentOverlayElement.style.cursor = "default";
+        const container = this.currentOverlayElement.querySelector(".fe-dev-tools-overlay-container") as HTMLElement;
         if (container) {
           container.style.border = "2px solid rgba(34, 197, 94, 0.8)";
         }
       }
-    });
+    }
   }
 
 
   private startDrag(e: MouseEvent, overlayId: string): void {
     if (this.dragState.isDragging) return;
 
-    const element = this.overlays.get(overlayId);
+    // Use the current overlay element instead of looking up by ID
+    const element = this.currentOverlayElement;
     if (!element) return;
 
     this.dragState = {
@@ -517,7 +616,7 @@ export class UIComparator {
     document.addEventListener("mousemove", (e) => {
       if (!this.dragState.isDragging || !this.dragState.currentOverlay) return;
 
-      const element = this.overlays.get(this.dragState.currentOverlay);
+      const element = this.currentOverlayElement;
       if (!element) return;
 
       const deltaX = e.clientX - this.dragState.startX;
@@ -531,8 +630,8 @@ export class UIComparator {
       if (this.dragState.isDragging) {
         // Send position update to background script
         const overlayId = this.dragState.currentOverlay;
-        if (overlayId) {
-          const element = this.overlays.get(overlayId);
+        if (overlayId && this.currentOverlayElement) {
+          const element = this.currentOverlayElement;
           if (element) {
             const newX = parseInt(element.style.left);
             const newY = parseInt(element.style.top);
@@ -572,21 +671,16 @@ export class UIComparator {
   }
 
   private toggleAllOverlays(): void {
-    const visibleCount = Array.from(this.overlays.values()).filter(
-      (overlay) => overlay.style.display !== "none"
-    ).length;
-
-    const shouldHide = visibleCount > 0;
-
-    this.overlays.forEach((overlay) => {
-      overlay.style.display = shouldHide ? "none" : "block";
-    });
+    if (this.currentOverlayElement) {
+      const isVisible = this.currentOverlayElement.style.display !== "none";
+      this.currentOverlayElement.style.display = isVisible ? "none" : "block";
+    }
   }
 
   private hideAllOverlays(): void {
-    this.overlays.forEach((overlay) => {
-      overlay.style.display = "none";
-    });
+    if (this.currentOverlayElement) {
+      this.currentOverlayElement.style.display = "none";
+    }
   }
 
   private initializeScrollSync(): void {
@@ -596,24 +690,24 @@ export class UIComparator {
       const scrollY = window.scrollY;
       const scrollX = window.scrollX;
       
-      this.overlays.forEach((overlayElement) => {
+      if (this.currentOverlayElement) {
         // Only sync scroll for non-locked overlays
-        if (overlayElement.style.pointerEvents !== "none") {
+        if (this.currentOverlayElement.style.pointerEvents !== "none") {
           // Get original position (stored in data attributes or calculate from current style)
-          const originalY = parseInt(overlayElement.getAttribute('data-original-top') || overlayElement.style.top) || 0;
-          const originalX = parseInt(overlayElement.getAttribute('data-original-left') || overlayElement.style.left) || 0;
+          const originalY = parseInt(this.currentOverlayElement.getAttribute('data-original-top') || this.currentOverlayElement.style.top) || 0;
+          const originalX = parseInt(this.currentOverlayElement.getAttribute('data-original-left') || this.currentOverlayElement.style.left) || 0;
           
           // Apply scroll offset
-          overlayElement.style.top = `${originalY - scrollY}px`;
-          overlayElement.style.left = `${originalX - scrollX}px`;
+          this.currentOverlayElement.style.top = `${originalY - scrollY}px`;
+          this.currentOverlayElement.style.left = `${originalX - scrollX}px`;
         }
-      });
+      }
       
       ticking = false;
     };
 
     const onScroll = () => {
-      if (!ticking && this.overlays.size > 0) {
+      if (!ticking && this.currentOverlayElement) {
         requestAnimationFrame(updateOverlayPositions);
         ticking = true;
       }
