@@ -15,6 +15,7 @@ import { generateId, readFileAsDataURL, validateImageFile } from "@/shared/utils
 import { Eye, EyeOff, Lock, Monitor, Trash2, Unlock, Upload } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useExtensionStore } from "../hooks/useExtensionStore";
+import { useI18n } from "../hooks/useI18n";
 
 export const UIComparatorPanel: React.FC = () => {
   const {
@@ -26,6 +27,7 @@ export const UIComparatorPanel: React.FC = () => {
     updateOverlay,
     removeOverlay,
   } = useExtensionStore();
+  const { t } = useI18n();
 
   const [currentUrl, setCurrentUrl] = useState<string>("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -108,11 +110,11 @@ export const UIComparatorPanel: React.FC = () => {
 
       console.log("Creating new overlay after clearing:", overlay);
       await createOverlay(overlay);
-      showToast(`UI图片上传成功，窗口宽度已调整为 ${width}px`, "success");
+      showToast(`${t('ui_comparator.upload.success')} ${width}px`, "success");
       return false; // Prevent default upload behavior
     } catch (error) {
       console.error("Upload error:", error);
-      showToast("上传失败", "error");
+      showToast(t('ui_comparator.upload.error'), "error");
       return false;
     }
   };
@@ -128,36 +130,36 @@ export const UIComparatorPanel: React.FC = () => {
     try {
       await updateOverlay(overlayId, { opacity: opacity / 100 });
     } catch (error) {
-      showToast("透明度调整失败", "error");
+      showToast(t('toast.operation_failed'), "error");
     }
   };
 
   const handleToggleVisibility = async (overlayId: string, visible: boolean) => {
     try {
       await updateOverlay(overlayId, { visible: !visible });
-      showToast(`图层已${!visible ? "显示" : "隐藏"}`, "success");
+      showToast(!visible ? t('toast.layer_toggled_visible') : t('toast.layer_toggled_hidden'), "success");
     } catch (error) {
-      showToast("操作失败", "error");
+      showToast(t('toast.operation_failed'), "error");
     }
   };
 
   const handleToggleLock = async (overlayId: string, locked: boolean) => {
     try {
       await updateOverlay(overlayId, { locked: !locked });
-      showToast(`图层已${!locked ? "锁定" : "解锁"}`, "success");
+      showToast(!locked ? t('toast.layer_locked') : t('toast.layer_unlocked'), "success");
     } catch (error) {
-      showToast("操作失败", "error");
+      showToast(t('toast.operation_failed'), "error");
     }
   };
 
   const handleRemoveOverlay = async (overlayId: string) => {
     try {
       await removeOverlay(overlayId);
-      showToast("图层删除成功", "success");
+      showToast(t('toast.layer_deleted'), "success");
       setDeleteDialogOpen(false);
       setOverlayToDelete("");
     } catch (error) {
-      showToast("删除失败", "error");
+      showToast(t('toast.operation_failed'), "error");
     }
   };
 
@@ -200,9 +202,9 @@ export const UIComparatorPanel: React.FC = () => {
         await updateOverlay(overlay.id, { visible: !shouldHide });
       }
 
-      showToast(`所有图层已${shouldHide ? "隐藏" : "显示"}`, "success");
+      showToast(shouldHide ? t('toast.all_layers_hidden') : t('toast.all_layers_visible'), "success");
     } catch (error) {
-      showToast("操作失败", "error");
+      showToast(t('toast.operation_failed'), "error");
     }
   };
 
@@ -211,10 +213,10 @@ export const UIComparatorPanel: React.FC = () => {
       for (const overlay of currentOverlays) {
         await removeOverlay(overlay.id);
       }
-      showToast("所有图层已清除", "success");
+      showToast(t('toast.layers_cleared'), "success");
       setClearAllDialogOpen(false);
     } catch (error) {
-      showToast("清除失败", "error");
+      showToast(t('toast.operation_failed'), "error");
     }
   };
 
@@ -227,60 +229,80 @@ export const UIComparatorPanel: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 py-2">
       {/* Toast notification */}
       {toast && (
         <div
-          className={`fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg ${
-            toast.type === "success" ? "bg-green-500 text-white" : "bg-red-500 text-white"
-          }`}
+          className={`fixed top-6 right-6 z-50 p-4 rounded-2xl shadow-2xl backdrop-blur-xl border ${
+            toast.type === "success" 
+              ? "bg-green-500/90 text-white border-green-400/50" 
+              : "bg-red-500/90 text-white border-red-400/50"
+          } transition-all duration-300 transform translate-x-0`}
         >
-          {toast.message}
+          <div className="flex items-center gap-3">
+            <div className={`w-2 h-2 rounded-full ${
+              toast.type === "success" ? "bg-white/80" : "bg-white/80"
+            }`}></div>
+            <span className="font-medium">{toast.message}</span>
+          </div>
         </div>
       )}
 
       {error && (
-        <div className="p-3 bg-destructive/15 text-destructive rounded-md text-sm">{error}</div>
+        <div className="p-4 bg-red-500/10 text-red-600 rounded-2xl text-sm border border-red-200/50 backdrop-blur-xl">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-red-500/10 flex items-center justify-center flex-shrink-0">
+              <div className="w-4 h-4 border-2 border-red-500 rounded-full flex items-center justify-center">
+                <div className="w-1 h-1 bg-red-500 rounded-full"></div>
+              </div>
+            </div>
+            <span className="font-medium">{error}</span>
+          </div>
+        </div>
       )}
 
       {/* Upload section */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="relative border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center hover:border-muted-foreground/50 transition-colors">
+      <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-card/50 backdrop-blur-xl">
+        <CardContent className="p-4">
+          <div className="relative border-2 border-dashed border-border/30 rounded-2xl p-8 text-center hover:border-border/60 transition-all duration-300 hover:bg-muted/20 group">
             <input
               type="file"
               accept={UI_CONSTANTS.SUPPORTED_IMAGE_FORMATS.map((f) => `.${f}`).join(",")}
               onChange={handleFileUpload}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
-            <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg font-medium mb-2">点击或拖拽UI设计稿到此处</p>
-            <p className="text-sm text-muted-foreground">
-              支持格式: {UI_CONSTANTS.SUPPORTED_IMAGE_FORMATS.join(", ")}
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+              <Upload className="h-8 w-8 text-primary" />
+            </div>
+            <p className="text-lg font-semibold mb-2 text-foreground">{t('ui_comparator.upload.title')}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              支持格式：{UI_CONSTANTS.SUPPORTED_IMAGE_FORMATS.join("、")}
             </p>
           </div>
         </CardContent>
       </Card>
 
       {/* Browser size adjustment */}
-      <Card>
+      <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-card/50 backdrop-blur-xl">
         <CardContent className="p-4">
-          <h4 className="font-medium mb-3 flex items-center gap-2">
-            <Monitor className="w-4 h-4" />
-            浏览器尺寸调整
-          </h4>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
+              <Monitor className="w-4 h-4 text-blue-600" />
+            </div>
+            <h4 className="font-semibold text-foreground">{t('ui_comparator.browser_size.title')}</h4>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {UI_CONSTANTS.COMMON_SCREEN_SIZES.map(({ name, width, height }) => (
               <Button
                 key={name}
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={() => handleAdjustBrowserSize(width, height)}
-                className="h-auto p-2 flex flex-col gap-1"
+                className="h-auto p-3 flex flex-col gap-1.5 border border-border/50 rounded-xl hover:border-border hover:bg-muted/50 transition-all duration-200 hover:scale-105"
               >
-                <span className="text-xs font-medium">{name}</span>
+                <span className="text-xs font-medium text-foreground">{name}</span>
                 <span className="text-xs text-muted-foreground">
-                  {width}×{height}
+                  {width} × {height}
                 </span>
               </Button>
             ))}
@@ -289,19 +311,42 @@ export const UIComparatorPanel: React.FC = () => {
       </Card>
 
       {/* Overlays management */}
-      <Card>
+      <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-card/50 backdrop-blur-xl">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-4">
-            <h4 className="font-medium">图层管理 ({currentOverlays.length})</h4>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-green-500/10 flex items-center justify-center">
+                <div className="w-4 h-4 flex flex-col gap-0.5">
+                  <div className="h-0.5 bg-green-600 rounded-full opacity-40"></div>
+                  <div className="h-0.5 bg-green-600 rounded-full opacity-60"></div>
+                  <div className="h-0.5 bg-green-600 rounded-full opacity-80"></div>
+                  <div className="h-0.5 bg-green-600 rounded-full"></div>
+                </div>
+              </div>
+              <h4 className="font-semibold text-foreground">{t('ui_comparator.layers.title')}</h4>
+              <div className="px-2.5 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
+                {currentOverlays.length}
+              </div>
+            </div>
             {currentOverlays.length > 0 && (
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleToggleAllOverlays}>
-                  <Eye className="w-4 h-4 mr-1" />
-                  切换显示
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleToggleAllOverlays}
+                  className="rounded-xl border border-border/50 hover:border-border hover:bg-muted/50"
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  {t('ui_comparator.layers.toggle_all')}
                 </Button>
-                <Button variant="destructive" size="sm" onClick={() => setClearAllDialogOpen(true)}>
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  清除全部
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setClearAllDialogOpen(true)}
+                  className="rounded-xl border border-red-200/50 hover:border-red-300 hover:bg-red-50/50 text-red-600"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {t('ui_comparator.layers.clear_all')}
                 </Button>
               </div>
             )}
@@ -332,19 +377,32 @@ export const UIComparatorPanel: React.FC = () => {
       </Card>
 
       {/* Keyboard shortcuts info */}
-      <Card>
+      <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-card/50 backdrop-blur-xl">
         <CardContent className="p-4">
-          <h4 className="font-medium mb-3">快捷键</h4>
-          <div className="space-y-1 text-sm">
-            <div>
-              <kbd className="px-2 py-1 bg-muted rounded text-xs">Ctrl+Shift+U</kbd>{" "}
-              切换所有图层显示/隐藏
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-xl bg-purple-500/10 flex items-center justify-center">
+              <div className="w-4 h-4 border-2 border-purple-600 rounded opacity-80"></div>
             </div>
-            <div>
-              <kbd className="px-2 py-1 bg-muted rounded text-xs">Esc</kbd> 隐藏所有图层
+            <h4 className="font-semibold text-foreground">{t('ui_comparator.shortcuts.title')}</h4>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/30">
+              <span className="text-sm text-muted-foreground">{t('ui_comparator.shortcuts.toggle_all')}</span>
+              <kbd className="px-3 py-1.5 bg-background border border-border rounded-lg text-xs font-mono shadow-sm">
+                ⌘⇧U
+              </kbd>
             </div>
-            <div>
-              <strong>图层操作:</strong> 拖拽移动位置
+            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/30">
+              <span className="text-sm text-muted-foreground">隐藏所有图层</span>
+              <kbd className="px-3 py-1.5 bg-background border border-border rounded-lg text-xs font-mono shadow-sm">
+                Esc
+              </kbd>
+            </div>
+            <div className="p-3 rounded-xl bg-muted/30 border border-border/30">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-primary rounded-full"></div>
+                <span className="text-sm text-muted-foreground">拖拽移动图层位置</span>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -352,33 +410,31 @@ export const UIComparatorPanel: React.FC = () => {
 
       {/* Delete confirmation dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent
-          className="rounded-lg"
-          style={{
-            maxWidth: "calc(100% - 24px)",
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle className="text-lg font-semibold">确认删除</DialogTitle>
-            <DialogDescription className="text-muted-foreground mt-2">
-              确定要删除这个图层吗？此操作不可撤销。
+        <DialogContent className="rounded-3xl border-0 bg-background/95 backdrop-blur-xl shadow-2xl max-w-sm mx-auto">
+          <DialogHeader className="text-center pb-6">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-500/10 flex items-center justify-center">
+              <Trash2 className="w-8 h-8 text-red-500" />
+            </div>
+            <DialogTitle className="text-xl font-semibold text-foreground">{t('dialog.delete.title')}</DialogTitle>
+            <DialogDescription className="text-muted-foreground mt-3 leading-relaxed">
+              {t('dialog.delete.description')}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="pt-4">
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setDeleteDialogOpen(false)}
-                className="flex-1 sm:flex-none"
-              >
-                取消
-              </Button>
+          <DialogFooter className="pt-2">
+            <div className="flex flex-col gap-3 w-full">
               <Button
                 variant="destructive"
                 onClick={() => handleRemoveOverlay(overlayToDelete)}
-                className="flex-1 sm:flex-none"
+                className="w-full rounded-2xl h-12 font-medium text-base"
               >
-                删除
+                {t('dialog.delete.confirm')}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setDeleteDialogOpen(false)}
+                className="w-full rounded-2xl h-12 font-medium text-base hover:bg-muted/50"
+              >
+                {t('common.cancel')}
               </Button>
             </div>
           </DialogFooter>
@@ -387,33 +443,36 @@ export const UIComparatorPanel: React.FC = () => {
 
       {/* Clear all confirmation dialog */}
       <Dialog open={clearAllDialogOpen} onOpenChange={setClearAllDialogOpen}>
-        <DialogContent
-          className="rounded-lg"
-          style={{
-            maxWidth: "calc(100% - 24px)",
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle className="text-lg font-semibold">确认清除</DialogTitle>
-            <DialogDescription className="text-muted-foreground mt-2">
-              确定要清除所有图层吗？此操作不可撤销。
+        <DialogContent className="rounded-3xl border-0 bg-background/95 backdrop-blur-xl shadow-2xl max-w-sm mx-auto">
+          <DialogHeader className="text-center pb-6">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-orange-500/10 flex items-center justify-center">
+              <div className="w-8 h-8 flex flex-col gap-1">
+                <div className="h-1 bg-orange-500 rounded-full opacity-40"></div>
+                <div className="h-1 bg-orange-500 rounded-full opacity-60"></div>
+                <div className="h-1 bg-orange-500 rounded-full opacity-80"></div>
+                <div className="h-1 bg-orange-500 rounded-full"></div>
+              </div>
+            </div>
+            <DialogTitle className="text-xl font-semibold text-foreground">{t('dialog.clear_all.title')}</DialogTitle>
+            <DialogDescription className="text-muted-foreground mt-3 leading-relaxed">
+              {t('dialog.clear_all.description')}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="pt-4">
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setClearAllDialogOpen(false)}
-                className="flex-1 sm:flex-none"
-              >
-                取消
-              </Button>
+          <DialogFooter className="pt-2">
+            <div className="flex flex-col gap-3 w-full">
               <Button
                 variant="destructive"
                 onClick={handleClearAllOverlays}
-                className="flex-1 sm:flex-none"
+                className="w-full rounded-2xl h-12 font-medium text-base"
               >
-                清除全部
+                {t('dialog.clear_all.confirm')}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setClearAllDialogOpen(false)}
+                className="w-full rounded-2xl h-12 font-medium text-base hover:bg-muted/50"
+              >
+                {t('common.cancel')}
               </Button>
             </div>
           </DialogFooter>

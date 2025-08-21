@@ -263,7 +263,11 @@ export class UIComparator {
 
     // Toggle all overlays button
     const toggleBtn = document.createElement("button");
-    toggleBtn.innerHTML = "👁️";
+    toggleBtn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M8 3C4.5 3 1.5 5.5 0 8C1.5 10.5 4.5 13 8 13C11.5 13 14.5 10.5 16 8C14.5 5.5 11.5 3 8 3ZM8 11C6.5 11 5 9.5 5 8C5 6.5 6.5 5 8 5C9.5 5 11 6.5 11 8C11 9.5 9.5 11 8 11ZM8 6.5C7.2 6.5 6.5 7.2 6.5 8C6.5 8.8 7.2 9.5 8 9.5C8.8 9.5 9.5 8.8 9.5 8C9.5 7.2 8.8 6.5 8 6.5Z" fill="currentColor"/>
+      </svg>
+    `;
     toggleBtn.title = "切换所有图层";
     toggleBtn.className = "fe-dev-tools-toolbar-btn";
     toggleBtn.onclick = (e) => {
@@ -273,7 +277,12 @@ export class UIComparator {
 
     // Freeze all overlays button
     const freezeBtn = document.createElement("button");
-    freezeBtn.innerHTML = "🔒";
+    freezeBtn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M5 7V5C5 2.8 6.8 1 9 1C11.2 1 13 2.8 13 5V7H14C14.6 7 15 7.4 15 8V14C15 14.6 14.6 15 14 15H4C3.4 15 3 14.6 3 14V8C3 7.4 3.4 7 4 7H5ZM6.5 7H11.5V5C11.5 3.6 10.4 2.5 9 2.5C7.6 2.5 6.5 3.6 6.5 5V7Z" fill="currentColor"/>
+        <circle cx="9" cy="11" r="1" fill="currentColor"/>
+      </svg>
+    `;
     freezeBtn.title = "冻结/解冻所有图层";
     freezeBtn.className = "fe-dev-tools-toolbar-btn";
     freezeBtn.onclick = (e) => {
@@ -283,7 +292,11 @@ export class UIComparator {
 
     // Delete all overlays button
     const deleteBtn = document.createElement("button");
-    deleteBtn.innerHTML = "🗑️";
+    deleteBtn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M6.5 1.5V2H3V3.5H4V13C4 13.8 4.7 14.5 5.5 14.5H10.5C11.3 14.5 12 13.8 12 13V3.5H13V2H9.5V1.5H6.5ZM5.5 3.5H10.5V13H5.5V3.5ZM7 5V11.5H8.5V5H7ZM9.5 5V11.5H11V5H9.5Z" fill="currentColor"/>
+      </svg>
+    `;
     deleteBtn.title = "删除所有图层";
     deleteBtn.className = "fe-dev-tools-toolbar-btn fe-dev-tools-delete-btn";
     deleteBtn.onclick = (e) => {
@@ -296,7 +309,12 @@ export class UIComparator {
     opacityContainer.className = "fe-dev-tools-opacity-container";
     
     const opacityLabel = document.createElement("span");
-    opacityLabel.innerHTML = "🎨";
+    opacityLabel.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M8 1L3 6V10C3 12.8 5.2 15 8 15C10.8 15 13 12.8 13 10V6L8 1ZM8 13.5C6 13.5 4.5 12 4.5 10V6.5L8 3L11.5 6.5V10C11.5 12 10 13.5 8 13.5Z" fill="currentColor"/>
+        <path d="M8 4.5C6.6 4.5 5.5 5.6 5.5 7V10C5.5 11.4 6.6 12.5 8 12.5V4.5Z" fill="currentColor" opacity="0.6"/>
+      </svg>
+    `;
     opacityLabel.title = "透明度";
     
     const opacitySlider = document.createElement("input");
@@ -340,7 +358,17 @@ export class UIComparator {
     if (!layerInfo) return;
 
     if (this.overlays.size === 0) {
-      layerInfo.innerHTML = `<span class="fe-dev-tools-layer-count">📋 暂无图层</span>`;
+      layerInfo.innerHTML = `
+        <span class="fe-dev-tools-layer-count">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right: 4px;">
+            <rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor" opacity="0.3"/>
+            <rect x="2" y="6" width="12" height="2" rx="1" fill="currentColor" opacity="0.6"/>
+            <rect x="2" y="9" width="12" height="2" rx="1" fill="currentColor" opacity="0.9"/>
+            <rect x="2" y="12" width="12" height="2" rx="1" fill="currentColor"/>
+          </svg>
+          暂无图层
+        </span>
+      `;
       return;
     }
 
@@ -349,7 +377,15 @@ export class UIComparator {
     ).length;
     
     layerInfo.innerHTML = `
-      <span class="fe-dev-tools-layer-count">📋 ${this.overlays.size} 层 (${visibleCount} 可见)</span>
+      <span class="fe-dev-tools-layer-count">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="margin-right: 4px;">
+          <rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor" opacity="0.3"/>
+          <rect x="2" y="6" width="12" height="2" rx="1" fill="currentColor" opacity="0.6"/>
+          <rect x="2" y="9" width="12" height="2" rx="1" fill="currentColor" opacity="0.9"/>
+          <rect x="2" y="12" width="12" height="2" rx="1" fill="currentColor"/>
+        </svg>
+        ${this.overlays.size} 层 (${visibleCount} 可见)
+      </span>
     `;
   }
 
@@ -616,95 +652,121 @@ export class UIComparator {
         
         #fe-dev-tools-menu-container {
           position: fixed !important;
-          bottom: 0 !important;
+          bottom: 20px !important;
           left: 50% !important;
           transform: translateX(-50%) !important;
-          opacity: 0.9 !important;
-          transition: opacity 0.2s ease !important;
+          opacity: 0.95 !important;
+          transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
           z-index: 999999 !important;
           pointer-events: auto !important;
-          background: rgba(0, 0, 0, 0.85) !important;
-          backdrop-filter: blur(10px) !important;
-          border-radius: 8px 8px 0 0 !important;
-          padding: 8px 16px !important;
+          background: rgba(28, 28, 30, 0.72) !important;
+          backdrop-filter: blur(40px) saturate(180%) !important;
+          border-radius: 20px !important;
+          padding: 10px 20px !important;
           display: flex !important;
           align-items: center !important;
-          gap: 12px !important;
-          min-width: 300px !important;
+          gap: 8px !important;
+          min-width: 280px !important;
           justify-content: center !important;
-          box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3) !important;
+          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+          border: 0.5px solid rgba(255, 255, 255, 0.1) !important;
         }
         
         #fe-dev-tools-menu-container:hover {
           opacity: 1 !important;
+          transform: translateX(-50%) translateY(-2px) !important;
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1) !important;
         }
         
         .fe-dev-tools-toolbar-btn {
-          background: rgba(255, 255, 255, 0.1) !important;
-          color: white !important;
-          border: 1px solid rgba(255, 255, 255, 0.2) !important;
-          border-radius: 6px !important;
-          width: 32px !important;
-          height: 32px !important;
+          background: rgba(120, 120, 128, 0.16) !important;
+          color: rgba(255, 255, 255, 0.9) !important;
+          border: none !important;
+          border-radius: 12px !important;
+          width: 36px !important;
+          height: 36px !important;
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
           cursor: pointer !important;
           font-size: 16px !important;
-          transition: all 0.2s ease !important;
+          transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+          backdrop-filter: blur(20px) !important;
+          position: relative !important;
         }
         
         .fe-dev-tools-toolbar-btn:hover {
-          background: rgba(255, 255, 255, 0.2) !important;
-          transform: scale(1.05) !important;
+          background: rgba(120, 120, 128, 0.24) !important;
+          transform: scale(1.08) !important;
+          color: rgba(255, 255, 255, 1) !important;
+        }
+        
+        .fe-dev-tools-toolbar-btn:active {
+          transform: scale(0.95) !important;
+          transition: all 0.1s ease !important;
         }
         
         .fe-dev-tools-delete-btn {
-          background: rgba(220, 38, 38, 0.6) !important;
+          background: rgba(255, 59, 48, 0.16) !important;
         }
         
         .fe-dev-tools-delete-btn:hover {
-          background: rgba(220, 38, 38, 0.8) !important;
+          background: rgba(255, 59, 48, 0.24) !important;
+          color: rgba(255, 255, 255, 1) !important;
         }
         
         .fe-dev-tools-opacity-container {
           display: flex !important;
           align-items: center !important;
-          gap: 6px !important;
-          background: rgba(255, 255, 255, 0.1) !important;
-          padding: 4px 8px !important;
-          border-radius: 6px !important;
+          gap: 8px !important;
+          background: rgba(120, 120, 128, 0.16) !important;
+          padding: 8px 12px !important;
+          border-radius: 12px !important;
+          backdrop-filter: blur(20px) !important;
         }
         
         .fe-dev-tools-opacity-slider {
-          width: 80px !important;
-          height: 4px !important;
-          background: rgba(255, 255, 255, 0.3) !important;
+          width: 70px !important;
+          height: 3px !important;
+          background: rgba(255, 255, 255, 0.2) !important;
           border-radius: 2px !important;
           outline: none !important;
           -webkit-appearance: none !important;
+          cursor: pointer !important;
         }
         
         .fe-dev-tools-opacity-slider::-webkit-slider-thumb {
           -webkit-appearance: none !important;
-          width: 12px !important;
-          height: 12px !important;
-          background: white !important;
+          width: 16px !important;
+          height: 16px !important;
+          background: rgba(255, 255, 255, 0.9) !important;
           border-radius: 50% !important;
           cursor: pointer !important;
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+          transition: all 0.2s ease !important;
+        }
+        
+        .fe-dev-tools-opacity-slider::-webkit-slider-thumb:hover {
+          transform: scale(1.1) !important;
+          background: rgba(255, 255, 255, 1) !important;
         }
         
         .fe-dev-tools-layer-info {
           color: rgba(255, 255, 255, 0.9) !important;
-          font-size: 12px !important;
-          background: rgba(255, 255, 255, 0.1) !important;
-          padding: 4px 8px !important;
-          border-radius: 6px !important;
+          font-size: 13px !important;
+          font-weight: 500 !important;
+          background: rgba(120, 120, 128, 0.16) !important;
+          padding: 8px 12px !important;
+          border-radius: 12px !important;
           white-space: nowrap !important;
+          backdrop-filter: blur(20px) !important;
+          letter-spacing: -0.08px !important;
         }
         
         .fe-dev-tools-layer-count {
           font-weight: 500 !important;
+          display: flex !important;
+          align-items: center !important;
         }
         
       `;
