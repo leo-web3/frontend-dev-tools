@@ -39,7 +39,11 @@ export type MessageType =
   | 'SAVE_CONFIG'
   | 'LOAD_CONFIG'
   | 'PING'
-  | 'GET_VIEWPORT_DIMENSIONS';
+  | 'GET_VIEWPORT_DIMENSIONS'
+  | 'GET_SIMULATOR_STATUS'
+  | 'ENABLE_VIEWPORT_SIMULATOR'
+  | 'DISABLE_VIEWPORT_SIMULATOR'
+  | 'SWITCH_DEVICE';
 
 export interface Message<T = any> {
   type: MessageType;

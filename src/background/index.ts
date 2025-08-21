@@ -42,10 +42,26 @@ class BackgroundService {
         case MESSAGE_TYPES.CREATE_OVERLAY:
         case MESSAGE_TYPES.REMOVE_OVERLAY:
         case MESSAGE_TYPES.TOGGLE_OVERLAY_VISIBILITY:
-          return await this.forwardToContentScript(message, targetTabId!);
+        case MESSAGE_TYPES.GET_SIMULATOR_STATUS:
+        case MESSAGE_TYPES.ENABLE_VIEWPORT_SIMULATOR:
+        case MESSAGE_TYPES.DISABLE_VIEWPORT_SIMULATOR:
+        case MESSAGE_TYPES.SWITCH_DEVICE:
+          if (!targetTabId) {
+            return {
+              success: false,
+              error: "No target tab ID available for content script operation",
+            };
+          }
+          return await this.forwardToContentScript(message, targetTabId);
 
         case MESSAGE_TYPES.UPDATE_OVERLAY:
-          return await this.handleUpdateOverlay(message, targetTabId!);
+          if (!targetTabId) {
+            return {
+              success: false,
+              error: "No target tab ID available for overlay update operation",
+            };
+          }
+          return await this.handleUpdateOverlay(message, targetTabId);
 
         case MESSAGE_TYPES.SAVE_CONFIG:
         case MESSAGE_TYPES.LOAD_CONFIG:
@@ -191,7 +207,7 @@ class BackgroundService {
                 const newWindowWidth = Math.max(100, Math.round(calculatedWidth)); // Minimum 100px width
                 const newWindowHeight = Math.max(
                   100,
-                  Math.round(calculatedHeight || targetWindow.height)
+                  Math.round(calculatedHeight || targetWindow.height || 600)
                 ); // Minimum 100px height
 
                 // Additional validation before calling chrome.windows.update
@@ -521,7 +537,7 @@ class BackgroundService {
 
     // Add safety check for onClicked
     if (chrome.contextMenus && chrome.contextMenus.onClicked) {
-      chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+      chrome.contextMenus.onClicked.addListener(async (_info, tab) => {
         try {
           if (!tab?.id) return;
 
@@ -538,7 +554,7 @@ class BackgroundService {
   private initializeTabListeners(): void {
     // Add safety check for tab listeners
     if (chrome.tabs && chrome.tabs.onUpdated) {
-      chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+      chrome.tabs.onUpdated.addListener(async (_tabId, _changeInfo, _tab) => {
         // Tab update handling (if needed in the future)
       });
     } else {
@@ -547,7 +563,7 @@ class BackgroundService {
 
     // Add safety check for tab creation listener
     if (chrome.tabs && chrome.tabs.onCreated) {
-      chrome.tabs.onCreated.addListener(async (tab) => {
+      chrome.tabs.onCreated.addListener(async (_tab) => {
         // Tab creation handling (if needed in the future)
       });
     } else {

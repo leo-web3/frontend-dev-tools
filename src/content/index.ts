@@ -1,10 +1,12 @@
 import { MESSAGE_TYPES } from "@/shared/constants";
 import { ExtensionResponse, Message, UIOverlay } from "@/shared/types";
 import { UIComparator } from "./uiComparator";
+import { DeviceSimulator } from "./components/DeviceSimulator";
 
 class ContentScript {
   private static instance: ContentScript;
   private uiComparator: UIComparator;
+  private deviceSimulator: DeviceSimulator;
 
   static getInstance(): ContentScript {
     if (!ContentScript.instance) {
@@ -15,6 +17,7 @@ class ContentScript {
 
   constructor() {
     this.uiComparator = new UIComparator();
+    this.deviceSimulator = new DeviceSimulator();
     this.initializeMessageListeners();
     this.initializePageObserver();
   }
@@ -62,6 +65,33 @@ class ContentScript {
           return {
             success: true,
             data: "Content script is available",
+          };
+
+        case MESSAGE_TYPES.GET_SIMULATOR_STATUS:
+          return {
+            success: true,
+            data: this.deviceSimulator.getState(),
+          };
+
+        case MESSAGE_TYPES.ENABLE_VIEWPORT_SIMULATOR:
+          this.deviceSimulator.enable(payload?.deviceId);
+          return {
+            success: true,
+            data: "Viewport simulator enabled",
+          };
+
+        case MESSAGE_TYPES.DISABLE_VIEWPORT_SIMULATOR:
+          this.deviceSimulator.disable();
+          return {
+            success: true,
+            data: "Viewport simulator disabled",
+          };
+
+        case MESSAGE_TYPES.SWITCH_DEVICE:
+          this.deviceSimulator.switchDevice(payload?.deviceId);
+          return {
+            success: true,
+            data: "Device switched",
           };
 
         default:
@@ -188,6 +218,7 @@ class ContentScript {
   // Cleanup method
   cleanup(): void {
     this.uiComparator.clearAllOverlays();
+    this.deviceSimulator.disable();
   }
 }
 

@@ -16,6 +16,7 @@ export interface I18nKeys {
 
   // Tabs
   "tabs.ui_comparator": string;
+  "tabs.viewport_simulator": string;
   "tabs.settings": string;
 
   // UI Comparator
@@ -25,6 +26,9 @@ export interface I18nKeys {
   "ui_comparator.upload.error": string;
 
   "ui_comparator.browser_size.title": string;
+  "ui_comparator.browser_size_hint.title": string;
+  "ui_comparator.browser_size_hint.description": string;
+  "ui_comparator.browser_size_hint.tip": string;
 
   "ui_comparator.layers.title": string;
   "ui_comparator.layers.empty": string;
@@ -34,6 +38,45 @@ export interface I18nKeys {
   "ui_comparator.shortcuts.toggle_all": string;
   "ui_comparator.shortcuts.hide_all": string;
   "ui_comparator.shortcuts.drag_to_move": string;
+
+  // Viewport Simulator
+  "viewport_simulator.title": string;
+  "viewport_simulator.description": string;
+  "viewport_simulator_control.title": string;
+  "viewport_simulator_control.description": string;
+  "viewport_simulator_control.status_enabled": string;
+  "viewport_simulator_control.status_disabled": string;
+  "viewport_simulator_control.select_device": string;
+  "viewport_simulator_control.choose_device": string;
+  "viewport_simulator_control.enabled": string;
+  "viewport_simulator_control.disabled": string;
+  "viewport_simulator_control.enable_failed": string;
+  "viewport_simulator_control.disable_failed": string;
+  "viewport_simulator_control.invalid_device": string;
+  "viewport_simulator_control.device_switched": string;
+  "viewport_simulator_control.operation_failed": string;
+  "viewport_simulator_control.instructions.line1": string;
+  "viewport_simulator_control.instructions.step1": string;
+  "viewport_simulator_control.instructions.step2": string;
+  "viewport_simulator_control.instructions.step3": string;
+  "viewport_simulator.orientation": string;
+  "viewport_simulator.portrait": string;
+  "viewport_simulator.landscape": string;
+  "viewport_simulator.coffee_mode": string;
+  "viewport_simulator.active": string;
+  "viewport_simulator.popular": string;
+  "viewport_simulator.desktop": string;
+  "viewport_simulator.custom_size": string;
+  "viewport_simulator.width": string;
+  "viewport_simulator.height": string;
+  "viewport_simulator.apply_custom_size": string;
+  "viewport_simulator.quick_actions": string;
+  "viewport_simulator.switched_to": string;
+  "viewport_simulator.switch_failed": string;
+  "viewport_simulator.custom_size_applied": string;
+  "viewport_simulator.custom_size_failed": string;
+  "viewport_simulator.invalid_width": string;
+  "viewport_simulator.invalid_height": string;
 
   // Dialogs
   "dialog.delete.title": string;
@@ -165,6 +208,7 @@ export const translations = {
 
     // Tabs
     "tabs.ui_comparator": "样式对比",
+    "tabs.viewport_simulator": "视口模拟器",
     "tabs.settings": "设置",
 
     // UI Comparator
@@ -174,6 +218,9 @@ export const translations = {
     "ui_comparator.upload.error": "上传失败",
 
     "ui_comparator.browser_size.title": "浏览器尺寸",
+    "ui_comparator.browser_size_hint.title": "浏览器尺寸调整",
+    "ui_comparator.browser_size_hint.description": "浏览器尺寸调整功能已移至视口模拟器",
+    "ui_comparator.browser_size_hint.tip": "切换到「视口模拟器」标签页体验全新的设备模拟功能",
 
     "ui_comparator.layers.title": "图层管理",
     "ui_comparator.layers.empty": "暂无图层",
@@ -183,6 +230,45 @@ export const translations = {
     "ui_comparator.shortcuts.toggle_all": "切换所有图层",
     "ui_comparator.shortcuts.hide_all": "隐藏所有图层",
     "ui_comparator.shortcuts.drag_to_move": "拖拽移动图层位置",
+
+    // Viewport Simulator
+    "viewport_simulator.title": "视口模拟器",
+    "viewport_simulator.description": "终极设备模拟器和网站测试工具",
+    "viewport_simulator_control.title": "视口模拟器",
+    "viewport_simulator_control.description": "启用后将在页面中显示真实设备外观",
+    "viewport_simulator_control.status_enabled": "已启用",
+    "viewport_simulator_control.status_disabled": "已禁用",
+    "viewport_simulator_control.select_device": "选择设备",
+    "viewport_simulator_control.choose_device": "选择设备型号",
+    "viewport_simulator_control.enabled": "视口模拟器已启用",
+    "viewport_simulator_control.disabled": "视口模拟器已禁用",
+    "viewport_simulator_control.enable_failed": "启用视口模拟器失败",
+    "viewport_simulator_control.disable_failed": "禁用视口模拟器失败",
+    "viewport_simulator_control.invalid_device": "无效的设备类型",
+    "viewport_simulator_control.device_switched": "设备已切换至",
+    "viewport_simulator_control.operation_failed": "操作失败",
+    "viewport_simulator_control.instructions.line1": "如何使用视口模拟器：",
+    "viewport_simulator_control.instructions.step1": "开启开关启用设备模拟",
+    "viewport_simulator_control.instructions.step2": "选择要模拟的设备型号",
+    "viewport_simulator_control.instructions.step3": "页面将显示真实设备外观",
+    "viewport_simulator.orientation": "方向",
+    "viewport_simulator.portrait": "竖屏",
+    "viewport_simulator.landscape": "横屏",
+    "viewport_simulator.coffee_mode": "咖啡模式",
+    "viewport_simulator.active": "激活中",
+    "viewport_simulator.popular": "热门",
+    "viewport_simulator.desktop": "桌面",
+    "viewport_simulator.custom_size": "自定义尺寸",
+    "viewport_simulator.width": "宽度",
+    "viewport_simulator.height": "高度",
+    "viewport_simulator.apply_custom_size": "应用自定义尺寸",
+    "viewport_simulator.quick_actions": "快捷操作",
+    "viewport_simulator.switched_to": "已切换到",
+    "viewport_simulator.switch_failed": "切换失败",
+    "viewport_simulator.custom_size_applied": "自定义尺寸已应用：",
+    "viewport_simulator.custom_size_failed": "自定义尺寸应用失败",
+    "viewport_simulator.invalid_width": "宽度必须为100-4000像素",
+    "viewport_simulator.invalid_height": "高度必须为100-4000像素",
 
     // Dialogs
     "dialog.delete.title": "删除图层",
@@ -313,6 +399,7 @@ export const translations = {
 
     // Tabs
     "tabs.ui_comparator": "Style Checker",
+    "tabs.viewport_simulator": "Viewport Simulator",
     "tabs.settings": "Settings",
 
     // UI Comparator
@@ -322,6 +409,9 @@ export const translations = {
     "ui_comparator.upload.error": "Upload failed",
 
     "ui_comparator.browser_size.title": "Browser Size",
+    "ui_comparator.browser_size_hint.title": "Browser Size Adjustment",
+    "ui_comparator.browser_size_hint.description": "Browser size adjustment has been moved to Viewport Simulator",
+    "ui_comparator.browser_size_hint.tip": "Switch to 'Viewport Simulator' tab to experience the new device simulation features",
 
     "ui_comparator.layers.title": "Layer Management",
     "ui_comparator.layers.empty": "No layers",
@@ -331,6 +421,45 @@ export const translations = {
     "ui_comparator.shortcuts.toggle_all": "Toggle all layers",
     "ui_comparator.shortcuts.hide_all": "Hide all layers",
     "ui_comparator.shortcuts.drag_to_move": "Drag to move layer position",
+
+    // Viewport Simulator
+    "viewport_simulator.title": "Viewport Simulator",
+    "viewport_simulator.description": "Ultimate device emulator and website testing tool",
+    "viewport_simulator_control.title": "Viewport Simulator",
+    "viewport_simulator_control.description": "When enabled, shows real device appearance on the page",
+    "viewport_simulator_control.status_enabled": "Enabled",
+    "viewport_simulator_control.status_disabled": "Disabled",
+    "viewport_simulator_control.select_device": "Select Device",
+    "viewport_simulator_control.choose_device": "Choose device model",
+    "viewport_simulator_control.enabled": "Viewport simulator enabled",
+    "viewport_simulator_control.disabled": "Viewport simulator disabled",
+    "viewport_simulator_control.enable_failed": "Failed to enable viewport simulator",
+    "viewport_simulator_control.disable_failed": "Failed to disable viewport simulator",
+    "viewport_simulator_control.invalid_device": "Invalid device type",
+    "viewport_simulator_control.device_switched": "Device switched to",
+    "viewport_simulator_control.operation_failed": "Operation failed",
+    "viewport_simulator_control.instructions.line1": "How to use the viewport simulator:",
+    "viewport_simulator_control.instructions.step1": "Toggle switch to enable device simulation",
+    "viewport_simulator_control.instructions.step2": "Select device model to simulate",
+    "viewport_simulator_control.instructions.step3": "Page will show real device appearance",
+    "viewport_simulator.orientation": "Orientation",
+    "viewport_simulator.portrait": "Portrait",
+    "viewport_simulator.landscape": "Landscape",
+    "viewport_simulator.coffee_mode": "Coffee Mode",
+    "viewport_simulator.active": "Active",
+    "viewport_simulator.popular": "Popular",
+    "viewport_simulator.desktop": "Desktop",
+    "viewport_simulator.custom_size": "Custom Size",
+    "viewport_simulator.width": "Width",
+    "viewport_simulator.height": "Height",
+    "viewport_simulator.apply_custom_size": "Apply Custom Size",
+    "viewport_simulator.quick_actions": "Quick Actions",
+    "viewport_simulator.switched_to": "Switched to",
+    "viewport_simulator.switch_failed": "Switch failed",
+    "viewport_simulator.custom_size_applied": "Custom size applied:",
+    "viewport_simulator.custom_size_failed": "Custom size application failed",
+    "viewport_simulator.invalid_width": "Width must be between 100-4000 pixels",
+    "viewport_simulator.invalid_height": "Height must be between 100-4000 pixels",
 
     // Dialogs
     "dialog.delete.title": "Delete Layer",
@@ -374,6 +503,8 @@ export const translations = {
     "toast.storage_info_failed": "Failed to get storage info",
 
     // Errors
+    "error.no_active_tab": "No active tab found",
+    "error.content_script_injection_failed": "Failed to inject content script",
     "error.no_page_info": "Unable to get current page information",
     "error.need_refresh": "Plugin needs page refresh to work properly. Please refresh the page and try again.",
     "error.unsupported_page": "This page does not support UI comparison functionality (browser internal page)",

@@ -12,10 +12,11 @@ import { Slider } from "@/components/ui/slider";
 import { UI_CONSTANTS } from "@/shared/constants";
 import { UIOverlay } from "@/shared/types";
 import { generateId, readFileAsDataURL, validateImageFile } from "@/shared/utils";
-import { Eye, EyeOff, Lock, Monitor, Trash2, Unlock, Upload } from "lucide-react";
+import { Eye, EyeOff, Lock, Trash2, Unlock, Upload } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useExtensionStore } from "../hooks/useExtensionStore";
 import { useI18n } from "../hooks/useI18n";
+import { ViewportSimulatorControl } from "./ViewportSimulatorControl";
 
 export const UIComparatorPanel: React.FC = () => {
   const {
@@ -102,8 +103,7 @@ export const UIComparatorPanel: React.FC = () => {
         locked: false,
       };
 
-      // Auto-adjust browser size to match design width only
-      await handleAdjustBrowserSize(width, null);
+      // Note: Browser size adjustment is now handled by the Viewport Simulator tab
 
       await createOverlay(overlay);
       showToast(`${t("ui_comparator.upload.success")} ${width}px`, "success");
@@ -173,30 +173,6 @@ export const UIComparatorPanel: React.FC = () => {
     }
   };
 
-  const handleAdjustBrowserSize = async (width: number, height: number | null) => {
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: "ADJUST_BROWSER_SIZE",
-        payload: { width, height },
-      });
-      if (response?.success) {
-        const data = response.data;
-        const finalMessage = data?.screenConstrained
-          ? `${t("toast.browser_size_adjusted")} ${data.finalWidth}px (${t(
-              "ui_comparator.screen_limited"
-            )})`
-          : height !== null
-          ? `${t("toast.browser_size_adjusted")} ${width}x${height}`
-          : `${t("toast.browser_size_adjusted")} ${width}px`;
-        showToast(finalMessage, "success");
-      } else {
-        const errorMsg = response?.error || t("error.size_adjust_failed");
-        showToast(errorMsg, "error");
-      }
-    } catch (error) {
-      showToast(t("error.size_adjust_failed"), "error");
-    }
-  };
 
   const handleToggleAllOverlays = async () => {
     try {
@@ -295,35 +271,8 @@ export const UIComparatorPanel: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Browser size adjustment */}
-      <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-card/50 backdrop-blur-xl">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
-              <Monitor className="w-4 h-4 text-blue-600" />
-            </div>
-            <h4 className="font-semibold text-foreground">
-              {t("ui_comparator.browser_size.title")}
-            </h4>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {UI_CONSTANTS.COMMON_SCREEN_SIZES.map(({ name, width, height }) => (
-              <Button
-                key={name}
-                variant="ghost"
-                size="sm"
-                onClick={() => handleAdjustBrowserSize(width, height)}
-                className="h-auto p-3 flex flex-col gap-1.5 border border-border/50 rounded-xl hover:border-border hover:bg-muted/50 transition-all duration-200 hover:scale-105"
-              >
-                <span className="text-xs font-medium text-foreground">{name}</span>
-                <span className="text-xs text-muted-foreground">
-                  {width} × {height}
-                </span>
-              </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Viewport Simulator Control */}
+      <ViewportSimulatorControl />
 
       {/* Overlays management */}
       <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-card/50 backdrop-blur-xl">

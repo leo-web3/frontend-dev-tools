@@ -3,7 +3,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import React, { useEffect, useState } from "react";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { UIComparatorPanel } from "./components/UIComparatorPanel";
+import { ViewportSimulator } from "./components/ViewportSimulator";
 import { useExtensionStore } from "./hooks/useExtensionStore";
+import { useViewportSimulator } from "./hooks/useViewportSimulator";
 import { useI18n } from "./hooks/useI18n";
 
 export const App: React.FC = () => {
@@ -15,6 +17,7 @@ export const App: React.FC = () => {
     globalSettings,
     updateGlobalSettings,
   } = useExtensionStore();
+  const { adjustViewport } = useViewportSimulator();
   const { t } = useI18n();
 
   useEffect(() => {
