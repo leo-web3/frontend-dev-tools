@@ -380,11 +380,66 @@ class BackgroundService {
   }
 
   private async handleConfigMessage(message: Message): Promise<ExtensionResponse> {
-    // Implementation will be added when we create the config management system
-    return {
-      success: true,
-      data: null,
-    };
+    try {
+      const { type, payload } = message;
+      
+      switch (type) {
+        case MESSAGE_TYPES.LOAD_CONFIG:
+          // Load overlays for the specified URL
+          const url = payload?.url;
+          if (!url) {
+            return {
+              success: false,
+              error: 'URL is required for loading config',
+            };
+          }
+
+          // Get stored UI comparisons
+          const result = await chrome.storage.local.get(['uiComparisons']);
+          const uiComparisons = result.uiComparisons || {};
+          const config = uiComparisons[url];
+          
+          return {
+            success: true,
+            data: config || { overlays: [] },
+          };
+
+        case MESSAGE_TYPES.SAVE_CONFIG:
+          // Save overlays for the specified URL
+          const saveUrl = payload?.url;
+          const configData = payload?.config;
+          
+          if (!saveUrl || !configData) {
+            return {
+              success: false,
+              error: 'URL and config data are required for saving config',
+            };
+          }
+
+          const saveResult = await chrome.storage.local.get(['uiComparisons']);
+          const saveComparisons = saveResult.uiComparisons || {};
+          saveComparisons[saveUrl] = configData;
+          
+          await chrome.storage.local.set({ uiComparisons: saveComparisons });
+          
+          return {
+            success: true,
+            data: 'Config saved successfully',
+          };
+
+        default:
+          return {
+            success: false,
+            error: `Unknown config message type: ${type}`,
+          };
+      }
+    } catch (error) {
+      console.error('Error handling config message:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
   }
 
   private initializeContextMenus(): void {

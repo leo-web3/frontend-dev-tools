@@ -133,10 +133,17 @@ class ContentScript {
         payload: { url: window.location.href }
       });
 
-      if (response.success && response.data?.overlays) {
+      console.log('Load overlays response:', response);
+
+      if (response.success && response.data?.overlays && response.data.overlays.length > 0) {
+        console.log('Loading overlays for current page:', response.data.overlays);
         for (const overlay of response.data.overlays) {
           await this.uiComparator.createOverlay(overlay);
         }
+      } else {
+        console.log('No overlays to load for current page');
+        // Ensure all overlays are cleared if no data exists
+        this.uiComparator.clearAllOverlays();
       }
     } catch (error) {
       console.error('Failed to load overlays for current page:', error);

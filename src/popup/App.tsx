@@ -1,12 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { UIComparatorPanel } from './components/UIComparatorPanel';
-import { SettingsPanel } from './components/SettingsPanel';
-import { useExtensionStore } from './hooks/useExtensionStore';
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import React, { useEffect, useState } from "react";
+import { SettingsPanel } from "./components/SettingsPanel";
+import { UIComparatorPanel } from "./components/UIComparatorPanel";
+import { useExtensionStore } from "./hooks/useExtensionStore";
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>('ui-comparator');
-  const { initializeStore, saveLastActiveTab, loadLastActiveTab } = useExtensionStore();
+  const [activeTab, setActiveTab] = useState<string>("ui-comparator");
+  const {
+    initializeStore,
+    saveLastActiveTab,
+    loadLastActiveTab,
+    globalSettings,
+    updateGlobalSettings,
+  } = useExtensionStore();
 
   useEffect(() => {
     // Initialize the store and get current tab info
@@ -15,10 +22,10 @@ export const App: React.FC = () => {
       // Load the last active tab after store is initialized
       const lastTab = loadLastActiveTab();
       // Only allow valid tabs
-      const validTabs = ['ui-comparator', 'settings'];
-      setActiveTab(validTabs.includes(lastTab) ? lastTab : 'ui-comparator');
+      const validTabs = ["ui-comparator", "settings"];
+      setActiveTab(validTabs.includes(lastTab) ? lastTab : "ui-comparator");
     };
-    
+
     initializeApp();
   }, []);
 
@@ -28,29 +35,66 @@ export const App: React.FC = () => {
     saveLastActiveTab(tabKey);
   };
 
+  const toggleTheme = () => {
+    const newTheme = globalSettings.theme === "light" ? "dark" : "light";
+    updateGlobalSettings({ theme: newTheme });
+    // Apply theme class to document root
+    document.documentElement.classList.toggle("dark", newTheme === "dark");
+  };
+
+  const toggleLanguage = () => {
+    const newLanguage = globalSettings.language === "zh" ? "en" : "zh";
+    updateGlobalSettings({ language: newLanguage });
+  };
+
+  // Apply theme on mount and when theme changes
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", globalSettings.theme === "dark");
+  }, [globalSettings.theme]);
+
   // Tab definitions for cleaner code
   const tabData = [
     {
-      key: 'ui-comparator',
-      icon: '🎨',
-      label: 'UI比对',
+      key: "ui-comparator",
+      icon: "🎨",
+      label: "UI比对",
       component: <UIComparatorPanel />,
     },
     {
-      key: 'settings',
-      icon: '⚙️',
-      label: '设置',
+      key: "settings",
+      icon: "⚙️",
+      label: "设置",
       component: <SettingsPanel />,
     },
   ];
 
   return (
     <div className="app-container min-h-screen bg-background text-foreground">
-      <header className="app-header border-b px-6 py-4">
-        <div className="flex items-center justify-between">
+      <header className="relative z-50 bg-background border-b h-16">
+        <div className="flex fixed top-0 left-0 right-0 bg-background border-b w-full h-16 items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
             <span className="text-2xl">🔧</span>
             <h1 className="text-lg font-semibold">Frontend Dev Tools</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleTheme}
+              className="h-8 w-8 p-0"
+              title={globalSettings.theme === "light" ? "切换到深色模式" : "切换到浅色模式"}
+            >
+              {globalSettings.theme === "light" ? "🌙" : "☀️"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleLanguage}
+              className="h-8 w-8 p-0"
+              title={globalSettings.language === "zh" ? "Switch to English" : "切换到中文"}
+            >
+              {globalSettings.language === "zh" ? "🇺🇸" : "🇨🇳"}
+            </Button>
           </div>
         </div>
       </header>
@@ -65,7 +109,7 @@ export const App: React.FC = () => {
               </TabsTrigger>
             ))}
           </TabsList>
-          
+
           {tabData.map((tab) => (
             <TabsContent key={tab.key} value={tab.key} className="mt-0">
               {tab.component}
@@ -75,9 +119,7 @@ export const App: React.FC = () => {
       </main>
 
       <footer className="app-footer border-t px-6 py-3">
-        <div className="text-center text-sm text-muted-foreground">
-          © 2024 Frontend Dev Tools
-        </div>
+        <div className="text-center text-sm text-muted-foreground">© 2024 Frontend Dev Tools</div>
       </footer>
     </div>
   );

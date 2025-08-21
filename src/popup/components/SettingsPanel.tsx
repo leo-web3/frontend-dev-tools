@@ -1,31 +1,30 @@
-import React, { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Download, Upload, RotateCcw, ChevronDown, Info } from 'lucide-react';
-import { useExtensionStore } from '../hooks/useExtensionStore';
-import { storageManager } from '@/shared/storage';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { storageManager } from "@/shared/storage";
+import { Download, Info, RotateCcw, Upload } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useExtensionStore } from "../hooks/useExtensionStore";
 
 export const SettingsPanel: React.FC = () => {
-  const {
-    globalSettings,
-    loading,
-    error,
-    loadGlobalSettings,
-    updateGlobalSettings,
-  } = useExtensionStore();
+  const { globalSettings, loading, error, loadGlobalSettings, updateGlobalSettings } =
+    useExtensionStore();
 
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
-  const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
 
-  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+  const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
@@ -34,21 +33,21 @@ export const SettingsPanel: React.FC = () => {
     loadGlobalSettings();
   }, [loadGlobalSettings]);
 
-  const handleThemeChange = async (theme: 'light' | 'dark') => {
+  const handleThemeChange = async (theme: "light" | "dark") => {
     try {
       await updateGlobalSettings({ theme });
-      showToast('主题设置已保存', 'success');
+      showToast("主题设置已保存", "success");
     } catch (error) {
-      showToast('主题设置失败', 'error');
+      showToast("主题设置失败", "error");
     }
   };
 
-  const handleLanguageChange = async (language: 'zh' | 'en') => {
+  const handleLanguageChange = async (language: "zh" | "en") => {
     try {
       await updateGlobalSettings({ language });
-      showToast('语言设置已保存', 'success');
+      showToast("语言设置已保存", "success");
     } catch (error) {
-      showToast('语言设置失败', 'error');
+      showToast("语言设置失败", "error");
     }
   };
 
@@ -56,29 +55,29 @@ export const SettingsPanel: React.FC = () => {
     try {
       const shortcuts = { ...globalSettings.shortcuts, [action]: shortcut };
       await updateGlobalSettings({ shortcuts });
-      showToast('快捷键设置已保存', 'success');
+      showToast("快捷键设置已保存", "success");
     } catch (error) {
-      showToast('快捷键设置失败', 'error');
+      showToast("快捷键设置失败", "error");
     }
   };
 
   const handleExportConfig = async () => {
     try {
       const data = await storageManager.exportData();
-      const blob = new Blob([data], { type: 'application/json' });
+      const blob = new Blob([data], { type: "application/json" });
       const url = URL.createObjectURL(blob);
-      
-      const a = document.createElement('a');
+
+      const a = document.createElement("a");
       a.href = url;
-      a.download = `fe-dev-tools-config-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `fe-dev-tools-config-${new Date().toISOString().split("T")[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      
-      showToast('配置导出成功', 'success');
+
+      showToast("配置导出成功", "success");
     } catch (error) {
-      showToast('配置导出失败', 'error');
+      showToast("配置导出失败", "error");
     }
   };
 
@@ -91,9 +90,9 @@ export const SettingsPanel: React.FC = () => {
       try {
         const content = e.target?.result as string;
         await storageManager.importData(content);
-        showToast('配置导入成功，请刷新扩展', 'success');
+        showToast("配置导入成功，请刷新扩展", "success");
       } catch (error) {
-        showToast('配置导入失败：数据格式错误', 'error');
+        showToast("配置导入失败：数据格式错误", "error");
       }
     };
     reader.readAsText(file);
@@ -102,20 +101,23 @@ export const SettingsPanel: React.FC = () => {
   const handleResetSettings = async () => {
     try {
       await storageManager.clear();
-      showToast('设置已重置，请刷新扩展', 'success');
+      showToast("设置已重置，请刷新扩展", "success");
       setResetDialogOpen(false);
     } catch (error) {
-      showToast('设置重置失败', 'error');
+      showToast("设置重置失败", "error");
     }
   };
 
   const getStorageUsage = async () => {
     try {
       const usage = await storageManager.getUsage();
-      const usagePercent = (usage.bytesInUse / usage.quotaBytes * 100).toFixed(1);
-      showToast(`存储使用情况: ${usage.bytesInUse} / ${usage.quotaBytes} bytes (${usagePercent}%)`, 'info');
+      const usagePercent = ((usage.bytesInUse / usage.quotaBytes) * 100).toFixed(1);
+      showToast(
+        `存储使用情况: ${usage.bytesInUse} / ${usage.quotaBytes} bytes (${usagePercent}%)`,
+        "info"
+      );
     } catch (error) {
-      showToast('获取存储信息失败', 'error');
+      showToast("获取存储信息失败", "error");
     }
   };
 
@@ -123,11 +125,15 @@ export const SettingsPanel: React.FC = () => {
     <div className="space-y-4">
       {/* Toast notification */}
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg ${
-          toast.type === 'success' ? 'bg-green-500 text-white' : 
-          toast.type === 'error' ? 'bg-red-500 text-white' :
-          'bg-blue-500 text-white'
-        }`}>
+        <div
+          className={`fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg ${
+            toast.type === "success"
+              ? "bg-green-500 text-white"
+              : toast.type === "error"
+              ? "bg-red-500 text-white"
+              : "bg-blue-500 text-white"
+          }`}
+        >
           {toast.message}
         </div>
       )}
@@ -135,89 +141,16 @@ export const SettingsPanel: React.FC = () => {
       {error && (
         <div className="p-3 bg-destructive/15 text-destructive rounded-md text-sm">{error}</div>
       )}
-
-      {/* Appearance Settings */}
-      <Card>
-        <CardContent className="p-4">
-          <h4 className="font-medium mb-4">外观设置</h4>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium text-sm">主题</div>
-                <div className="text-sm text-muted-foreground">选择扩展程序的外观主题</div>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    {globalSettings.theme === 'light' ? '浅色' : '深色'} <ChevronDown className="ml-1 w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => handleThemeChange('light')}>
-                    浅色
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleThemeChange('dark')}>
-                    深色
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium text-sm">语言</div>
-                <div className="text-sm text-muted-foreground">选择界面显示语言</div>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    {globalSettings.language === 'zh' ? '中文' : 'English'} <ChevronDown className="ml-1 w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => handleLanguageChange('zh')}>
-                    中文
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleLanguageChange('en')}>
-                    English
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Keyboard Shortcuts */}
       <Card>
         <CardContent className="p-4">
           <h4 className="font-medium mb-4">快捷键设置</h4>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <div className="font-medium text-sm">切换CORS</div>
-              <Input
-                value={globalSettings.shortcuts.toggleCors}
-                onChange={(e) => handleShortcutChange('toggleCors', e.target.value)}
-                placeholder="例如: Ctrl+Shift+C"
-                className="w-40"
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="font-medium text-sm">切换环境变量</div>
-              <Input
-                value={globalSettings.shortcuts.toggleEnvironment}
-                onChange={(e) => handleShortcutChange('toggleEnvironment', e.target.value)}
-                placeholder="例如: Ctrl+Shift+E"
-                className="w-40"
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
               <div className="font-medium text-sm">切换UI比对</div>
               <Input
                 value={globalSettings.shortcuts.toggleUIComparator}
-                onChange={(e) => handleShortcutChange('toggleUIComparator', e.target.value)}
+                onChange={(e) => handleShortcutChange("toggleUIComparator", e.target.value)}
                 placeholder="例如: Ctrl+Shift+U"
                 className="w-40"
               />
@@ -234,7 +167,9 @@ export const SettingsPanel: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-medium text-sm">导出配置</div>
-                <div className="text-sm text-muted-foreground">导出当前所有设置和配置到JSON文件</div>
+                <div className="text-sm text-muted-foreground">
+                  导出当前所有设置和配置到JSON文件
+                </div>
               </div>
               <Button onClick={handleExportConfig} variant="outline" size="sm">
                 <Download className="w-4 h-4 mr-1" />
@@ -283,14 +218,10 @@ export const SettingsPanel: React.FC = () => {
             <div>
               <div className="font-medium text-sm">重置所有设置</div>
               <div className="text-sm text-destructive">
-                这将清除所有配置数据，包括环境变量、CORS设置和UI图层
+                这将清除所有配置数据，包括UI图层和扩展设置
               </div>
             </div>
-            <Button 
-              variant="destructive"
-              size="sm"
-              onClick={() => setResetDialogOpen(true)}
-            >
+            <Button variant="destructive" size="sm" onClick={() => setResetDialogOpen(true)}>
               <RotateCcw className="w-4 h-4 mr-1" />
               重置设置
             </Button>
@@ -309,10 +240,10 @@ export const SettingsPanel: React.FC = () => {
             <div className="mt-4">
               <div className="font-medium mb-2">功能特性：</div>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-4">
-                <li>环境变量管理和注入</li>
-                <li>跨域请求处理</li>
                 <li>UI设计稿像素级比对</li>
                 <li>浏览器尺寸快速调整</li>
+                <li>图层管理和控制</li>
+                <li>响应式设计辅助</li>
               </ul>
             </div>
           </div>
@@ -325,17 +256,14 @@ export const SettingsPanel: React.FC = () => {
           <DialogHeader>
             <DialogTitle>确认重置</DialogTitle>
             <DialogDescription>
-              这将清除所有配置数据，包括环境变量、CORS设置和UI图层。此操作不可撤销。
+              这将清除所有配置数据，包括UI图层和扩展设置。此操作不可撤销。
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setResetDialogOpen(false)}>
               取消
             </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleResetSettings}
-            >
+            <Button variant="destructive" onClick={handleResetSettings}>
               确认重置
             </Button>
           </DialogFooter>
