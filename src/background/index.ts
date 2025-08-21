@@ -386,18 +386,24 @@ class BackgroundService {
     tabId: number
   ): Promise<ExtensionResponse> {
     try {
+      console.log('[Background] handleUpdateOverlay called:', { message, tabId });
+      
       // Forward to content script first
       const contentResponse = await this.forwardToContentScript(message, tabId);
+      console.log('[Background] Content script response:', contentResponse);
       
       // If content script update succeeded, update stored config
       if (contentResponse.success) {
         const { payload } = message;
         const { id, updates } = payload;
         
+        console.log('[Background] Updating storage for overlay:', { id, updates });
+        
         // Get current tab URL to update storage
         const tab = await new Promise<chrome.tabs.Tab>((resolve) => {
           chrome.tabs.get(tabId, (tab) => {
             if (chrome.runtime.lastError) {
+              console.error('[Background] Failed to get tab:', chrome.runtime.lastError);
               resolve(null as any);
             } else {
               resolve(tab);
@@ -405,11 +411,15 @@ class BackgroundService {
           });
         });
         
+        console.log('[Background] Tab info:', tab);
+        
         if (tab?.url) {
           // Load current config
           const result = await chrome.storage.local.get(['uiComparisons']);
           const uiComparisons = result.uiComparisons || {};
           const config = uiComparisons[tab.url];
+          
+          console.log('[Background] Current config for URL:', { url: tab.url, config });
           
           if (config?.overlays) {
             // Update the specific overlay
@@ -417,15 +427,23 @@ class BackgroundService {
               overlay.id === id ? { ...overlay, ...updates } : overlay
             );
             
+            console.log('[Background] Updated overlays:', updatedOverlays);
+            
             // Save updated config
             config.overlays = updatedOverlays;
             uiComparisons[tab.url] = config;
             await chrome.storage.local.set({ uiComparisons });
             
-            console.log('Background: Updated overlay in storage:', { id, updates, url: tab.url });
+            console.log('[Background] Saved to storage successfully');
             
             // Notify popup of state change if it exists
             try {
+              console.log('[Background] Sending OVERLAY_STATE_CHANGED to popup:', {
+                url: tab.url,
+                overlayId: id,
+                updates
+              });
+              
               chrome.runtime.sendMessage({
                 type: MESSAGE_TYPES.OVERLAY_STATE_CHANGED,
                 payload: {
@@ -433,18 +451,31 @@ class BackgroundService {
                   overlayId: id,
                   updates
                 }
+              }, (response) => {
+                // Check for chrome.runtime.lastError to prevent unchecked errors
+                if (chrome.runtime.lastError) {
+                  console.log('[Background] OVERLAY_STATE_CHANGED message failed (popup probably closed):', chrome.runtime.lastError.message);
+                } else {
+                  console.log('[Background] OVERLAY_STATE_CHANGED response:', response);
+                }
               });
             } catch (error) {
               // Popup might not be open, ignore error
-              console.log('Could not notify popup (probably closed):', error);
+              console.log('[Background] Could not notify popup (probably closed):', error);
             }
+          } else {
+            console.log('[Background] No config or overlays found for URL:', tab.url);
           }
+        } else {
+          console.log('[Background] No tab URL available');
         }
+      } else {
+        console.log('[Background] Content script update failed:', contentResponse);
       }
       
       return contentResponse;
     } catch (error) {
-      console.error('Error handling UPDATE_OVERLAY:', error);
+      console.error('[Background] Error handling UPDATE_OVERLAY:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to update overlay',

@@ -133,12 +133,33 @@ export const UIComparatorPanel: React.FC = () => {
 
   const handleToggleVisibility = async (overlayId: string, visible: boolean) => {
     try {
-      await updateOverlay(overlayId, { visible: !visible });
+      console.log('[Popup] handleToggleVisibility called:', { overlayId, visible, newVisible: !visible });
+      
+      const newVisible = !visible;
+      
+      if (newVisible) {
+        // If we're making this overlay visible, first hide all other visible overlays
+        console.log('[Popup] Making overlay visible, hiding others first');
+        
+        for (const overlay of currentOverlays) {
+          if (overlay.id !== overlayId && overlay.visible) {
+            console.log(`[Popup] Hiding overlay ${overlay.id}`);
+            await updateOverlay(overlay.id, { visible: false });
+          }
+        }
+      }
+      
+      // Now toggle the target overlay
+      console.log(`[Popup] Setting overlay ${overlayId} visible to ${newVisible}`);
+      await updateOverlay(overlayId, { visible: newVisible });
+      
       showToast(
-        !visible ? t("toast.layer_toggled_visible") : t("toast.layer_toggled_hidden"),
+        newVisible ? t("toast.layer_toggled_visible") : t("toast.layer_toggled_hidden"),
         "success"
       );
+      console.log('[Popup] Visibility toggle completed successfully');
     } catch (error) {
+      console.error('[Popup] Failed to toggle visibility:', error);
       showToast(t("toast.operation_failed"), "error");
     }
   };

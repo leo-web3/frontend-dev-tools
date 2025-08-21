@@ -146,9 +146,13 @@ export const useExtensionStore = create<ExtensionState>((set, get) => ({
 
   updateOverlay: async (id: string, updates: Partial<UIOverlay>) => {
     try {
+      console.log('[Popup Store] updateOverlay called:', { id, updates });
+      
       const overlays = get().currentOverlays.map(overlay => 
         overlay.id === id ? { ...overlay, ...updates } : overlay
       );
+      
+      console.log('[Popup Store] Updated overlays array:', overlays);
       
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       
@@ -156,14 +160,18 @@ export const useExtensionStore = create<ExtensionState>((set, get) => ({
         throw new Error('无法获取当前页面信息');
       }
 
+      console.log('[Popup Store] Saving overlays to storage for tab:', { url: tab.url, tabId: tab.id });
       await get().saveOverlays(tab.url, overlays);
       
+      console.log('[Popup Store] Sending UPDATE_OVERLAY message to background script');
       // Send message to content script
       const response = await chrome.runtime.sendMessage({
         type: 'UPDATE_OVERLAY',
         payload: { id, updates },
         tabId: tab.id
       });
+
+      console.log('[Popup Store] UPDATE_OVERLAY response:', response);
 
       if (!response?.success) {
         // Handle specific content script injection failures
@@ -175,8 +183,10 @@ export const useExtensionStore = create<ExtensionState>((set, get) => ({
           throw new Error(response?.error || '更新图层失败');
         }
       }
+      
+      console.log('[Popup Store] updateOverlay completed successfully');
     } catch (error) {
-      console.error('Failed to update overlay:', error);
+      console.error('[Popup Store] Failed to update overlay:', error);
       const errorMessage = error instanceof Error ? error.message : '更新图层失败';
       set({ error: errorMessage });
       throw error;
@@ -271,31 +281,47 @@ export const useExtensionStore = create<ExtensionState>((set, get) => ({
       
       // Set up message listener for overlay state changes
       chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        console.log('[Popup] Received message:', message);
+        
         if (message.type === 'OVERLAY_STATE_CHANGED') {
           const { url, overlayId, updates } = message.payload;
+          
+          console.log('[Popup] OVERLAY_STATE_CHANGED received:', { url, overlayId, updates });
           
           // Get current tab URL to see if this update affects current overlays
           chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             const currentTab = tabs[0];
+            console.log('[Popup] Current tab:', currentTab);
+            
             if (currentTab?.url === url) {
+              console.log('[Popup] URL matches, updating overlays');
+              
               // Update the current overlays state
               const currentOverlays = get().currentOverlays;
+              console.log('[Popup] Current overlays before update:', currentOverlays);
+              
               const updatedOverlays = currentOverlays.map(overlay =>
                 overlay.id === overlayId ? { ...overlay, ...updates } : overlay
               );
               
-              console.log('Popup: Received overlay state change, updating current overlays:', {
-                overlayId,
-                updates,
-                updatedOverlays
-              });
+              console.log('[Popup] Updated overlays:', updatedOverlays);
               
               set({ currentOverlays: updatedOverlays });
+              console.log('[Popup] State updated successfully');
+            } else {
+              console.log('[Popup] URL does not match current tab, ignoring update');
             }
+            
+            // Send response to prevent runtime error
+            sendResponse({ success: true });
           });
+          
+          // Return true to indicate we will send a response asynchronously
+          return true;
         }
         
-        return false; // Don't send response
+        // For other message types, don't send response
+        return false;
       });
       
       set({ loading: false });

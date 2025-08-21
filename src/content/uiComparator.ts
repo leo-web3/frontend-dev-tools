@@ -179,18 +179,25 @@ export class UIComparator {
 
   async toggleVisibility(id: string): Promise<ExtensionResponse> {
     try {
+      console.log(`[Content] toggleVisibility called for overlay ${id}`);
+      
       const overlayData = this.overlayData.get(id);
       if (!overlayData) {
+        console.error(`[Content] Overlay ${id} not found in overlayData`);
         return {
           success: false,
           error: "Overlay not found",
         };
       }
 
+      console.log(`[Content] Current overlay data:`, overlayData);
+
       // Update the overlay data
       const newVisible = !overlayData.visible;
       const updatedOverlay = { ...overlayData, visible: newVisible };
       this.overlayData.set(id, updatedOverlay);
+      
+      console.log(`[Content] Updated overlay ${id} visibility to ${newVisible}`);
       
       // If this overlay becomes visible, hide others and show this one
       if (newVisible) {
@@ -198,19 +205,29 @@ export class UIComparator {
         const otherVisibleIds: string[] = [];
         this.overlayData.forEach((data, otherId) => {
           if (otherId !== id && data.visible) {
+            console.log(`[Content] Hiding other overlay ${otherId}`);
             this.overlayData.set(otherId, { ...data, visible: false });
             otherVisibleIds.push(otherId);
           }
         });
         
+        console.log(`[Content] Sending UPDATE_OVERLAY messages for ${otherVisibleIds.length} other overlays:`, otherVisibleIds);
+        
         // Notify background script to update storage for hidden overlays
         otherVisibleIds.forEach(otherId => {
+          console.log(`[Content] Sending UPDATE_OVERLAY message for overlay ${otherId}`);
           chrome.runtime.sendMessage({
             type: "UPDATE_OVERLAY",
             payload: {
               id: otherId,
               updates: { visible: false },
             },
+          }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.error(`[Content] UPDATE_OVERLAY message failed for ${otherId}:`, chrome.runtime.lastError.message);
+            } else {
+              console.log(`[Content] UPDATE_OVERLAY response for ${otherId}:`, response);
+            }
           });
         });
         
@@ -221,12 +238,15 @@ export class UIComparator {
         if (!document.body.contains(overlayElement)) {
           document.body.appendChild(overlayElement);
         }
+        
+        console.log(`[Content] Overlay ${id} is now visible on page`);
       } else {
         // Hide the overlay
         if (this.currentOverlayElement && document.body.contains(this.currentOverlayElement)) {
           this.currentOverlayElement.remove();
           this.currentOverlayElement = null;
         }
+        console.log(`[Content] Overlay ${id} is now hidden from page`);
       }
 
       return {
@@ -234,7 +254,7 @@ export class UIComparator {
         data: `Overlay ${id} ${newVisible ? "shown" : "hidden"}`,
       };
     } catch (error) {
-      console.error("Failed to toggle overlay visibility:", error);
+      console.error("[Content] Failed to toggle overlay visibility:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Failed to toggle visibility",
