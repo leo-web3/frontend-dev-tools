@@ -174,14 +174,16 @@ class BackgroundService {
               console.log('Current viewport:', { innerWidth, innerHeight });
               
               if (targetWindow?.id && targetWindow.width && innerWidth) {
-                // Calculate the difference between window size and viewport size
-                const widthDiff = targetWindow.width - innerWidth;
+                // Calculate how much we need to adjust the browser window width
+                // 目标调整的宽度 - 当前视口宽度 = 需要调整的宽度
+                const widthAdjustment = width - innerWidth;
                 
-                // Calculate new window size to achieve desired viewport width
-                const calculatedWidth = width + widthDiff;
-                // Keep current height if height parameter is null
+                // Apply the width adjustment to current window width
+                const calculatedWidth = targetWindow.width + widthAdjustment;
+                
+                // Keep current height if height parameter is null, otherwise adjust height similarly
                 const calculatedHeight = height !== null && targetWindow.height && innerHeight 
-                  ? height + (targetWindow.height - innerHeight) 
+                  ? targetWindow.height + (height - innerHeight) 
                   : targetWindow.height;
                 
                 // Validate calculated dimensions (must be positive integers)
@@ -189,7 +191,7 @@ class BackgroundService {
                 const newWindowHeight = Math.max(100, Math.round(calculatedHeight || targetWindow.height)); // Minimum 100px height
                 
                 console.log('Calculated adjustments:', { 
-                  widthDiff, 
+                  widthAdjustment, 
                   calculatedWidth,
                   calculatedHeight,
                   newWindowWidth, 
@@ -246,7 +248,7 @@ class BackgroundService {
                         viewportHeight: height !== null ? height : 'unchanged',
                         finalWidth,
                         finalHeight,
-                        widthDiff,
+                        widthAdjustment,
                         heightAdjusted: height !== null,
                         screenConstrained: finalWidth !== newWindowWidth || finalHeight !== newWindowHeight,
                       },
